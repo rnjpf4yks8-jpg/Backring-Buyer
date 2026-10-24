@@ -1,0 +1,31 @@
+# Compile check on a GitHub-hosted Mac: builds the app for the simulator without signing.
+# TestFlight builds run on Codemagic (codemagic.yaml).
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Xcode
+        run: xcodebuild -version
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild -project HAINTEL.xcodeproj -scheme HAINTEL \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build.log | grep -E "error:|warning: .*HAINTEL/|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build.log
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
