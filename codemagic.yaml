@@ -1,6 +1,7 @@
 # Cloud build for HAINTEL: builds on a Codemagic Mac and uploads to TestFlight.
 # Setup (once, in Codemagic): Team settings → Integrations → App Store Connect → add an API key named "HAINTEL ASC".
-# Then add GoogleService-Info.plist as a base64 secure variable GOOGLE_SERVICE_INFO_PLIST in group "firebase".
+# Firebase config: commit HAINTEL/GoogleService-Info.plist, or add it base64-encoded as the secure
+# variable GOOGLE_SERVICE_INFO_PLIST in an environment group named "firebase".
 workflows:
   ios-testflight:
     name: HAINTEL → TestFlight
@@ -14,7 +15,7 @@ workflows:
         - firebase
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.example.haintel
+        bundle_identifier: com.haintel.app
     scripts:
       - name: Add Firebase config
         script: |

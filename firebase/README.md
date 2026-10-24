@@ -4,7 +4,7 @@ Until these steps are done the app runs in demo mode on sample data.
 
 ## One-time setup (about 20 minutes)
 1. Go to https://console.firebase.google.com and create a project named **HAINTEL**.
-2. **Add an iOS app** with bundle id `com.example.haintel` (or your own id; change it in Xcode to match).
+2. **Add an iOS app** with bundle id `com.haintel.app` (or your own id; change it in Xcode to match).
    Download `GoogleService-Info.plist` and drop it into the `HAINTEL/` folder next to `HAINTELApp.swift`.
    The app switches from demo data to Firebase automatically.
 3. **Authentication** → Sign-in method → turn on **Email/Password**.

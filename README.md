@@ -9,7 +9,7 @@ header step through hips in catalog order.
 1. Copy the `haintel` folder to a Mac with Xcode 16 or later.
 2. Open `HAINTEL.xcodeproj`, pick an iPhone 16 Pro simulator, press Run.
 3. To run on a phone, set your Team under Signing & Capabilities and change the bundle id
-   (`com.example.haintel`).
+   (`com.haintel.app`).
 
 Requires iOS 17. Files are picked up automatically from the `HAINTEL/` folder.
 
