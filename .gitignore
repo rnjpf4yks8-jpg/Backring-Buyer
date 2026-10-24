@@ -1,0 +1,10 @@
+.DS_Store
+xcuserdata/
+DerivedData/
+build/
+firebase/node_modules/
+*.ipa
+HAINTEL.zip
+# Firebase service account keys must never be committed
+*service-account*.json
+*-firebase-adminsdk-*.json

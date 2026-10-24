@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// Who can do what:
+//   anyone        reads sales and hips (catalog data)
+//   staff         write sales, hips, user roles
+//   panel member  (the sale's vet1/vet2/bs1/bs2) writes only their own opinion,
+//                 and may mark it posted on the hip (opinionsIn)
+//   buyer         reads an opinion only after buying it
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function isStaff() { return signedIn() && profile().role == 'staff'; }
+    function saleDoc(saleId) { return get(/databases/$(database)/documents/sales/$(saleId)).data; }
+    function panelUid(saleId, slot) { return saleDoc(saleId).panel.get(slot, {}).get('uid', ''); }
+    function isAuthor(saleId, slot) { return signedIn() && panelUid(saleId, slot) == request.auth.uid; }
+    function isPanelMember(saleId) {
+      return isAuthor(saleId, 'vet1') || isAuthor(saleId, 'vet2') || isAuthor(saleId, 'bs1') || isAuthor(saleId, 'bs2');
+    }
+
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+      // Anyone can create their own profile, but only as a buyer. Staff assign other roles.
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == 'buyer';
+      allow update, delete: if isStaff();
+
+      match /purchases/{purchaseId} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        // Test purchases only. Turn off config/app.testPurchases before launch; then only
+        // a Cloud Function (admin access, ignores these rules) records purchases after StoreKit verifies them.
+        allow create: if signedIn() && request.auth.uid == uid
+          && get(/databases/$(database)/documents/config/app).data.get('testPurchases', false) == true;
+      }
+    }
+
+    match /sales/{saleId} {
+      allow read: if true;
+      allow write: if isStaff();
+
+      match /hips/{hipId} {
+        allow read: if true;
+        allow create, delete: if isStaff();
+        allow update: if isStaff()
+          || (isPanelMember(saleId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opinionsIn']));
+
+        match /opinions/{slot} {
+          allow read: if isStaff() || isAuthor(saleId, slot)
+            || (signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/purchases/$(saleId + '_' + hipId + '_' + slot)));
+          allow write: if isStaff() || isAuthor(saleId, slot);
+        }
+      }
+    }
+  }
+}

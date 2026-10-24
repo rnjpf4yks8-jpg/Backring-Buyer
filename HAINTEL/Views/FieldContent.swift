@@ -1,0 +1,508 @@
+import AVKit
+import SwiftUI
+
+struct FieldContent: View {
+    let field: HipField
+    let hip: Hip
+
+    var body: some View {
+        switch field {
+        case .hipNumber: HipNumberPanel(hip: hip)
+        case .vetReport: VetReportPanel(report: hip.vetReport)
+        case .pedigree: PedigreePanel(pedigree: hip.pedigree)
+        case .auctionHistory: AuctionHistoryPanel(records: hip.auctionHistory)
+        case .vet1: OpinionContent(slot: .vet1, hip: hip)
+        case .vet2: OpinionContent(slot: .vet2, hip: hip)
+        case .bs1Rank: OpinionContent(slot: .bs1, hip: hip)
+        case .bs2Rank: OpinionContent(slot: .bs2, hip: hip)
+        case .reserve: ReservePanel(hip: hip)
+        case .saleWalkVideo: VideoPanel(url: hip.walkVideoURL, length: hip.walkVideoLength)
+        case .salePicture: PhotoPanel(url: hip.photoURL)
+        case .hp: PhysicalPanel(physical: hip.physical)
+        }
+    }
+}
+
+/// Vet 1, Vet 2, BS1 and BS2: not posted yet, locked behind a purchase, or the opinion itself.
+private struct OpinionContent: View {
+    @Environment(SaleStore.self) private var store
+    let slot: OpinionSlot
+    let hip: Hip
+
+    var body: some View {
+        let member = store.sale.member(slot)
+        if !hip.opinionsIn.contains(slot) {
+            Card {
+                Text("Not posted yet").font(Theme.sans(17, .semibold)).foregroundStyle(Theme.ink)
+                Text(store.isAuthor(slot)
+                     ? "Tap Post to add your opinion on this hip."
+                     : "\(member?.name ?? "The \(slot.isVet ? "vet" : "agent")") hasn’t posted an opinion on this hip yet.")
+                    .font(Theme.sans(15)).foregroundStyle(Theme.slate)
+            }
+        } else if !store.canRead(slot, hip: hip) {
+            Paywall(slot: slot, hip: hip)
+        } else if let opinion = store.opinion(slot, hip: hip) {
+            if slot.isVet {
+                VetOpinionPanel(opinion: opinion, member: member)
+            } else {
+                AgentOpinionPanel(opinion: opinion, member: member)
+            }
+        } else {
+            ProgressView().frame(maxWidth: .infinity, minHeight: 120)
+        }
+    }
+}
+
+// MARK: - 01 Hip Number
+
+private struct HipNumberPanel: View {
+    @Environment(SaleStore.self) private var store
+    let hip: Hip
+    @State private var query = ""
+
+    private var matches: [Hip] {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !q.isEmpty else { return store.hips }
+        return store.hips.filter {
+            String($0.number).hasPrefix(q) || $0.pedigree.sire.lowercased().contains(q)
+                || $0.pedigree.dam.lowercased().contains(q)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
+                Eyebrow(text: "Hip", color: Theme.amber)
+                Text("\(hip.number)")
+                    .font(Theme.mono(56, .bold))
+                    .foregroundStyle(.white)
+                Text(hip.name.isEmpty ? hip.title : "\(hip.name) · \(hip.title)")
+                    .font(Theme.sans(16, .medium))
+                    .foregroundStyle(Theme.mist)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.navy, in: RoundedRectangle(cornerRadius: 12))
+
+            Card {
+                InfoRow(label: "Foaled", value: hip.foaled)
+                InfoRow(label: "Session", value: hip.session)
+                InfoRow(label: "Barn", value: hip.barn)
+                InfoRow(label: "Consignor", value: hip.consignor)
+            }
+
+            Eyebrow(text: "Switch hip").padding(.top, 4)
+            TextField("Hip number, sire or dam", text: $query)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .padding(12)
+                .background(.white, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.line))
+
+            VStack(spacing: 0) {
+                ForEach(matches) { other in
+                    Button {
+                        store.currentHipNumber = other.number
+                        query = ""
+                    } label: {
+                        HStack(spacing: 14) {
+                            Text("\(other.number)")
+                                .font(Theme.mono(17, .semibold))
+                                .frame(width: 48, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(other.title).font(Theme.sans(15, .medium))
+                                Text(other.cross).font(Theme.sans(13)).foregroundStyle(Theme.slate)
+                            }
+                            Spacer()
+                            if other.number == hip.number {
+                                Image(systemName: "checkmark").foregroundStyle(Theme.blue)
+                            }
+                        }
+                        .foregroundStyle(Theme.ink)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 14)
+                        .contentShape(Rectangle())
+                    }
+                    if other.id != matches.last?.id { Divider().padding(.leading, 14) }
+                }
+                if matches.isEmpty {
+                    Text("No hip matches “\(query)”.")
+                        .font(Theme.sans(15))
+                        .foregroundStyle(Theme.slate)
+                        .padding(14)
+                }
+            }
+            .background(.white, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.line))
+        }
+    }
+}
+
+// MARK: - 02 Vet Report
+
+private struct VetReportPanel: View {
+    let report: VetReport
+
+    var body: some View {
+        if !report.isEntered {
+            Card {
+                Text("Not entered yet").font(Theme.sans(17, .semibold)).foregroundStyle(Theme.ink)
+                Text("HAINTEL staff haven’t summarized the repository report for this hip yet.")
+                    .font(Theme.sans(15)).foregroundStyle(Theme.slate)
+            }
+        } else {
+            entered
+        }
+    }
+
+    private var entered: some View {
+        VStack(spacing: 12) {
+            section("Radiographs", grade: report.radiographs, notes: report.radiographNotes)
+            section("Throat scope", grade: report.scope, notes: report.scopeNotes)
+            Card { InfoRow(label: "Filed in repository", value: report.filed) }
+        }
+    }
+
+    private func section(_ title: String, grade: Grade, notes: String) -> some View {
+        Card {
+            HStack {
+                Text(title).font(Theme.sans(17, .semibold)).foregroundStyle(Theme.ink)
+                Spacer()
+                GradeBadge(grade: grade)
+            }
+            Text(notes).font(Theme.sans(15)).foregroundStyle(Theme.slate).lineSpacing(3)
+        }
+    }
+}
+
+// MARK: - 03 Pedigree
+
+private struct PedigreePanel: View {
+    let pedigree: Pedigree
+
+    var body: some View {
+        VStack(spacing: 12) {
+            parent(role: "Sire", name: pedigree.sire, sire: pedigree.sireSire, dam: pedigree.sireDam)
+            parent(role: "Dam", name: pedigree.dam, sire: pedigree.damSire, dam: pedigree.damDam)
+        }
+    }
+
+    private func parent(role: String, name: String, sire: String, dam: String) -> some View {
+        Card {
+            Eyebrow(text: role)
+            Text(name).font(Theme.sans(20, .bold)).foregroundStyle(Theme.ink)
+            VStack(alignment: .leading, spacing: 8) {
+                ancestor("by", sire)
+                ancestor("out of", dam)
+            }
+            .padding(.leading, 14)
+            .overlay(alignment: .leading) { Rectangle().fill(Theme.line).frame(width: 2) }
+        }
+    }
+
+    private func ancestor(_ relation: String, _ name: String) -> some View {
+        HStack(spacing: 6) {
+            Text(relation).font(Theme.sans(14)).foregroundStyle(Theme.slate)
+            Text(name).font(Theme.sans(15, .medium)).foregroundStyle(Theme.ink)
+        }
+    }
+}
+
+// MARK: - 04 Auction History
+
+private struct AuctionHistoryPanel: View {
+    let records: [AuctionRecord]
+
+    var body: some View {
+        if records.isEmpty {
+            Card {
+                Text("First time through the ring").font(Theme.sans(17, .semibold))
+                Text("This horse has no earlier auction records.")
+                    .font(Theme.sans(15)).foregroundStyle(Theme.slate)
+            }
+        } else {
+            VStack(spacing: 12) {
+                ForEach(records) { record in
+                    Card {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(record.sale).font(Theme.sans(17, .semibold)).foregroundStyle(Theme.ink)
+                            Spacer()
+                            Text(record.date).font(Theme.mono(13)).foregroundStyle(Theme.slate)
+                        }
+                        InfoRow(label: "Hip", value: "\(record.hip)", mono: true)
+                        InfoRow(label: "Result", value: record.result)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 05/06 Vet 1, Vet 2
+
+private struct VetOpinionPanel: View {
+    let opinion: Opinion
+    let member: PanelMember?
+
+    var body: some View {
+        Card {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(member?.name ?? "Vet").font(Theme.sans(18, .semibold)).foregroundStyle(Theme.ink)
+                    Text(member?.org ?? "").font(Theme.sans(14)).foregroundStyle(Theme.slate)
+                }
+                Spacer()
+                if let grade = opinion.grade { GradeBadge(grade: grade) }
+            }
+            Divider()
+            if let basis = opinion.basis { BasisRow(basis: basis) }
+            InfoRow(label: "Date", value: opinion.date)
+            Text(opinion.notes).font(Theme.sans(15)).foregroundStyle(Theme.slate).lineSpacing(3)
+        }
+    }
+}
+
+// MARK: - 07/08 BS1 Rank, BS2 Rank
+
+private struct AgentOpinionPanel: View {
+    let opinion: Opinion
+    let member: PanelMember?
+
+    var body: some View {
+        VStack(spacing: 12) {
+            if let rank = opinion.rank, let outOf = opinion.outOf, outOf > 0 {
+                let topPercent = max(1, Int((Double(rank) / Double(outOf) * 100).rounded(.up)))
+                VStack(alignment: .leading, spacing: 8) {
+                    Eyebrow(text: "Bloodstock agent rank", color: Theme.amber)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("#\(rank)").font(Theme.mono(52, .bold)).foregroundStyle(.white)
+                        Text("of \(outOf)").font(Theme.sans(17)).foregroundStyle(Theme.mist)
+                    }
+                    ProgressView(value: Double(max(0, outOf - rank + 1)), total: Double(outOf))
+                        .tint(Theme.amber)
+                    Text("Top \(topPercent)% of the session")
+                        .font(Theme.sans(14)).foregroundStyle(Theme.muted)
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.navy, in: RoundedRectangle(cornerRadius: 12))
+            }
+
+            Card {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(member?.name ?? "Bloodstock agent").font(Theme.sans(18, .semibold)).foregroundStyle(Theme.ink)
+                    Text(member?.org ?? "").font(Theme.sans(14)).foregroundStyle(Theme.slate)
+                }
+                Divider()
+                if let score = opinion.score {
+                    InfoRow(label: "Score", value: String(format: "%.1f / 10", score), mono: true)
+                }
+                InfoRow(label: "Date", value: opinion.date)
+                Text(opinion.notes).font(Theme.sans(15)).foregroundStyle(Theme.slate).lineSpacing(3)
+            }
+        }
+    }
+}
+
+// MARK: - 09 Reserve
+
+private struct ReservePanel: View {
+    let hip: Hip
+
+    var body: some View {
+        Card {
+            Eyebrow(text: "Reserve")
+            Text(hip.reserve.map(usd) ?? "No reserve")
+                .font(Theme.mono(36, .bold))
+                .foregroundStyle(Theme.ink)
+            HStack(spacing: 8) {
+                Image(systemName: "lock.fill")
+                Text("Private to your team. Bidders never see it.")
+            }
+            .font(Theme.sans(14))
+            .foregroundStyle(Theme.slate)
+        }
+    }
+}
+
+// MARK: - 10 Sale Walk Video
+
+private struct VideoPanel: View {
+    let url: URL?
+    let length: String
+    @State private var player: AVPlayer?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let url {
+                VideoPlayer(player: player)
+                    .aspectRatio(16 / 9, contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .onAppear { if player == nil { player = AVPlayer(url: url) } }
+                    .onDisappear { player?.pause() }
+                Card { InfoRow(label: "Length", value: length, mono: true) }
+            } else {
+                MediaPlaceholder(symbol: "play.rectangle", text: "No walk video posted for this hip yet.")
+            }
+        }
+    }
+}
+
+// MARK: - 11 Sale Picture
+
+private struct PhotoPanel: View {
+    let url: URL?
+
+    var body: some View {
+        if let url {
+            AsyncImage(url: url) { image in
+                image.resizable().scaledToFit()
+            } placeholder: {
+                ProgressView().frame(maxWidth: .infinity, minHeight: 240)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        } else {
+            MediaPlaceholder(symbol: "figure.equestrian.sports", text: "No sale picture posted for this hip yet.")
+        }
+    }
+}
+
+private struct MediaPlaceholder: View {
+    let symbol: String
+    let text: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 44)).foregroundStyle(Theme.amber)
+            Text(text).font(Theme.sans(15)).foregroundStyle(Theme.mist).multilineTextAlignment(.center)
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, minHeight: 240)
+        .background(Theme.navyCard, in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - 12 HP (horse physical)
+
+private struct PhysicalPanel: View {
+    let physical: HorsePhysical?
+
+    var body: some View {
+        if let physical {
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    measure("Height", physical.heightHands, detail: "\(formatted(physical.heightInches)) in")
+                    measure("Length", "\(formatted(physical.lengthInches)) in",
+                            detail: "\(Int((physical.lengthInches * 2.54).rounded())) cm")
+                }
+                Card {
+                    InfoRow(label: "Measured by", value: "\(physical.measuredBy), HAINTEL")
+                    InfoRow(label: "Date", value: physical.date)
+                }
+            }
+        } else {
+            Card {
+                Text("Not measured yet").font(Theme.sans(17, .semibold))
+                Text("A HAINTEL field team member hasn’t measured this hip yet.")
+                    .font(Theme.sans(15)).foregroundStyle(Theme.slate)
+            }
+        }
+    }
+
+    private func measure(_ label: String, _ value: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Eyebrow(text: label, color: Theme.amber)
+            Text(value).font(Theme.mono(28, .bold)).foregroundStyle(.white)
+            Text(detail).font(Theme.sans(13)).foregroundStyle(Theme.muted)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.navy, in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func formatted(_ inches: Double) -> String {
+        inches.formatted(.number.precision(.fractionLength(0...1)))
+    }
+}
+
+// MARK: - Paid opinions
+
+private struct BasisRow: View {
+    let basis: ExamBasis
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: basis == .physicalExam ? "hand.raised.fill" : "film.stack")
+                .foregroundStyle(Theme.blue)
+                .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Based on").font(Theme.sans(13)).foregroundStyle(Theme.slate)
+                Text(basis.label).font(Theme.sans(15, .medium)).foregroundStyle(Theme.ink)
+            }
+        }
+    }
+}
+
+/// Shown in place of a vet or bloodstock opinion until the user buys it.
+private struct Paywall: View {
+    @Environment(SaleStore.self) private var store
+    let slot: OpinionSlot
+    let hip: Hip
+    @State private var buying = false
+    @State private var showAccount = false
+
+    var body: some View {
+        let member = store.sale.member(slot)
+        VStack(alignment: .leading, spacing: 14) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(Theme.amber)
+            Text("Unlock the \(slot.isVet ? "vet opinion" : "bloodstock agent opinion") for hip \(hip.number)")
+                .font(Theme.sans(20, .bold))
+                .foregroundStyle(.white)
+            if let member {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(member.name).font(Theme.sans(16, .semibold)).foregroundStyle(.white)
+                    Text(member.org).font(Theme.sans(14)).foregroundStyle(Theme.mist)
+                }
+            }
+            Text(slot.isVet
+                 ? "Their grade and full notes, and whether they read the repository films and scope or examined the horse in person."
+                 : "Their rank for this hip in the session, a score out of 10, and their notes.")
+                .font(Theme.sans(15))
+                .foregroundStyle(Theme.mist)
+                .lineSpacing(3)
+            Button {
+                if store.user == nil {
+                    showAccount = true
+                } else {
+                    buying = true
+                    Task {
+                        await store.buy(slot, hip: hip)
+                        buying = false
+                    }
+                }
+            } label: {
+                Group {
+                    if buying {
+                        ProgressView().tint(Theme.navy)
+                    } else {
+                        Text(store.user == nil ? "Sign in to buy · \(usd(store.sale.price(slot)))" : "Buy for \(usd(store.sale.price(slot)))")
+                    }
+                }
+                .font(Theme.sans(16, .semibold))
+                .frame(maxWidth: .infinity, minHeight: 50)
+                .foregroundStyle(Theme.navy)
+                .background(Theme.amber, in: RoundedRectangle(cornerRadius: 8))
+            }
+            .disabled(buying)
+            Text("One-time purchase for this hip.")
+                .font(Theme.sans(13))
+                .foregroundStyle(Theme.muted)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.navy, in: RoundedRectangle(cornerRadius: 12))
+        .sheet(isPresented: $showAccount) { AccountView() }
+    }
+}
