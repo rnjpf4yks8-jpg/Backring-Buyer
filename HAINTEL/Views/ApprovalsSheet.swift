@@ -17,12 +17,14 @@ struct ApprovalsSheet: View {
                 ForEach(store.approvalQueue, id: \.key) { item in
                     Button {
                         store.currentHipNumber = item.hip.number
+                        // Opens Vet Opinions or Bloodstock Opinions with this opinion picked in its menu.
+                        store.selectedSlots[item.slot.field] = item.slot
                         path = [.sale(store.sale.id), .field(item.slot.field)]
                         dismiss()
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Hip \(item.hip.number) · \(item.slot.field.title)")
+                                Text("Hip \(item.hip.number) · \(item.slot.title)")
                                     .font(Theme.sans(16, .semibold)).foregroundStyle(Theme.ink)
                                 Text(store.sale.member(item.slot)?.name ?? "")
                                     .font(Theme.sans(14)).foregroundStyle(Theme.slate)

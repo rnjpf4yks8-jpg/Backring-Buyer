@@ -22,6 +22,8 @@ final class SaleStore {
     var purchases: Set<String> = []
     /// Opinions loaded so far, keyed "<hip>_<slot>".
     var opinions: [String: Opinion] = [:]
+    /// The opinion picked in the menu on the Vet Opinions and Bloodstock Opinions screens.
+    var selectedSlots: [HipField: OpinionSlot] = [:]
     /// Everyone with an account. Loaded when staff open the Panel screen.
     var people: [AppUser] = []
     var isLoading = true
@@ -147,8 +149,13 @@ final class SaleStore {
 
     /// Staff edit everything except opinions; each vet and agent edits only their own slot.
     func canEdit(_ field: HipField) -> Bool {
-        if let slot = field.slot { return isAuthor(slot) }
+        if field.isOpinionGroup { return ownSlot(in: field) != nil }
         return isStaff
+    }
+
+    /// The signed-in vet's or agent's own slot under Vet Opinions or Bloodstock Opinions, if they have one.
+    func ownSlot(in field: HipField) -> OpinionSlot? {
+        field.slots.first { isAuthor($0) }
     }
 
     // MARK: Opinions
@@ -238,6 +245,44 @@ final class SaleStore {
         "\(sale.id)_\(hip.number)_\(slot.rawValue)"
     }
 
+    /// The opinions under a button that this user can pick in its menu: approved ones for everyone,
+    /// plus their own (posted or not) for a vet or agent, plus ones waiting for approval for staff.
+    func availableSlots(_ field: HipField, hip: Hip) -> [OpinionSlot] {
+        field.slots.filter { slot in
+            hip.opinionsIn.contains(slot) || isAuthor(slot) || (isStaff && hip.pendingSlots.contains(slot))
+        }
+    }
+
+    /// The opinion shown on a Vet Opinions or Bloodstock Opinions screen: the one picked in its menu,
+    /// else the user's own, else the first one available.
+    func selectedSlot(_ field: HipField, hip: Hip) -> OpinionSlot? {
+        let available = availableSlots(field, hip: hip)
+        if let picked = selectedSlots[field], available.contains(picked) { return picked }
+        if let own = ownSlot(in: field), available.contains(own) { return own }
+        return available.first
+    }
+
+    /// Where one opinion stands for this user, e.g. "Clean", "#4 of 186", "Unlock $25", "Not posted yet".
+    func slotStatus(_ slot: OpinionSlot, hip: Hip) -> (summary: String, locked: Bool) {
+        if hip.pendingSlots.contains(slot), isStaff || isAuthor(slot) {
+            return (isStaff ? "Needs approval" : "Waiting for approval", false)
+        }
+        guard hip.opinionsIn.contains(slot) else {
+            if isAuthor(slot), opinion(slot, hip: hip)?.reviewStatus == .rejected { return ("Returned by HAINTEL", false) }
+            return ("Not posted yet", false)
+        }
+        guard canRead(slot, hip: hip) else { return ("Unlock \(price(slot))", true) }
+        guard let opinion = opinion(slot, hip: hip) else { return ("Unlocked", false) }
+        if slot.isVet { return (opinion.grade?.label ?? "Posted", false) }
+        if let rank = opinion.rank, let outOf = opinion.outOf { return ("#\(rank) of \(outOf)", false) }
+        return ("Posted", false)
+    }
+
+    /// A menu row: the panel member's name and where their opinion stands.
+    func slotMenuTitle(_ slot: OpinionSlot, hip: Hip) -> String {
+        "\(sale.member(slot)?.name ?? slot.title) — \(slotStatus(slot, hip: hip).summary)"
+    }
+
     // MARK: Panel (staff)
 
     func loadPeople() async {
@@ -296,6 +341,30 @@ final class SaleStore {
         return url
     }
 
+    // MARK: Grades
+
+    /// Rank of the hip's conformation grade (C) in the open sale. Ties share a rank; ungraded hips have none.
+    func conformationRank(_ hip: Hip) -> Int? {
+        rank(hip.conformationGrade, among: hips.compactMap { $0.conformationGrade })
+    }
+
+    /// Rank of the hip's pedigree grade (P) in the open sale. Ties share a rank; ungraded hips have none.
+    func pedigreeRank(_ hip: Hip) -> Int? {
+        rank(hip.pedigreeGrade, among: hips.compactMap { $0.pedigreeGrade })
+    }
+
+    /// How many hips in the open sale have a conformation grade.
+    var conformationGradedCount: Int { hips.filter { $0.conformationGrade != nil }.count }
+
+    /// How many hips in the open sale have a pedigree grade.
+    var pedigreeGradedCount: Int { hips.filter { $0.pedigreeGrade != nil }.count }
+
+    /// 1 + the number of grades strictly higher than this one.
+    private func rank(_ grade: Double?, among grades: [Double]) -> Int? {
+        guard let grade else { return nil }
+        return 1 + grades.filter { $0 > grade }.count
+    }
+
     // MARK: Navigation
 
     var currentIndex: Int { hips.firstIndex { $0.number == currentHipNumber } ?? 0 }
@@ -334,30 +403,46 @@ final class SaleStore {
 extension SaleStore {
     /// One-line value for a home-screen button, and whether it is a paid opinion this user hasn't bought.
     func tileState(_ field: HipField, hip: Hip) -> (summary: String, locked: Bool) {
-        if let slot = field.slot {
-            if hip.pendingSlots.contains(slot), isStaff || isAuthor(slot) {
-                return (isStaff ? "Needs approval" : "Waiting for approval", false)
-            }
-            guard hip.opinionsIn.contains(slot) else { return ("Not posted yet", false) }
-            guard canRead(slot, hip: hip) else { return ("Unlock · \(price(slot))", true) }
-            guard let opinion = opinion(slot, hip: hip) else { return ("Unlocked", false) }
-            if slot.isVet { return (opinion.grade?.label ?? "Posted", false) }
-            if let rank = opinion.rank, let outOf = opinion.outOf { return ("#\(rank) of \(outOf)", false) }
-            return ("Posted", false)
-        }
+        if field.isOpinionGroup { return groupTileState(field, hip: hip) }
         let summary: String
         switch field {
         case .hipNumber: summary = "#\(hip.number)"
         case .vetReport: summary = !hip.vetReport.isEntered ? "Not entered" : worst(hip.vetReport.radiographs, hip.vetReport.scope).label
-        case .pedigree: summary = hip.pedigree.sire.isEmpty ? "Not entered" : "by \(hip.pedigree.sire)"
+        case .pedigree:
+            let grade: String? = hip.pedigreeGrade.map { "P \(Hip.gradeText($0))/5" }
+            let sire: String? = hip.pedigree.sire.isEmpty ? nil : "by \(hip.pedigree.sire)"
+            let parts = [grade, sire].compactMap { $0 }
+            summary = parts.isEmpty ? "Not entered" : parts.joined(separator: " · ")
         case .auctionHistory: summary = hip.auctionHistory.isEmpty ? "First sale" : "\(hip.auctionHistory.count) prior"
         case .reserve: summary = hip.reserve.map(usd) ?? "No reserve"
         case .saleWalkVideo: summary = hip.walkVideoURL == nil ? "Not posted" : (hip.walkVideoLength.isEmpty ? "Posted" : hip.walkVideoLength)
         case .salePicture: summary = hip.photoURL == nil ? "Not posted" : "1 photo"
         case .hp: summary = hip.physical.map { "\($0.heightHands) · \(Int($0.lengthInches))″" } ?? "Not measured"
-        default: summary = ""
+        case .vetOpinions, .bloodstockOpinions: summary = ""
         }
         return (summary, false)
+    }
+
+    /// Vet Opinions and Bloodstock Opinions: how many are posted and whether this user still has any to unlock.
+    private func groupTileState(_ field: HipField, hip: Hip) -> (summary: String, locked: Bool) {
+        let slots = field.slots
+        let pending = slots.filter { hip.pendingSlots.contains($0) }
+        if isStaff, !pending.isEmpty {
+            return (pending.count == 1 ? "Needs approval" : "\(pending.count) need approval", false)
+        }
+        // A vet or agent whose own opinion isn't approved yet sees where it stands.
+        if let own = ownSlot(in: field), !hip.opinionsIn.contains(own) {
+            return (slotStatus(own, hip: hip).summary, false)
+        }
+        let posted = slots.filter { hip.opinionsIn.contains($0) }
+        guard !posted.isEmpty else { return ("None posted", false) }
+        let noun = field == .vetOpinions ? "vet" : "agent"
+        let count = posted.count == 1 ? "1 \(noun)" : "\(posted.count) \(noun)s"
+        let locked = posted.filter { !canRead($0, hip: hip) }
+        if let lockedSlot = locked.first {
+            return ("\(count) · unlock \(locked.count > 1 ? "from " : "")\(price(lockedSlot))", true)
+        }
+        return ("\(count) · \(posted.count == 1 ? "unlocked" : "all unlocked")", false)
     }
 
     private func worst(_ a: Grade, _ b: Grade) -> Grade {

@@ -65,6 +65,19 @@ async function importHips(saleId, file) {
     for (const key of ['pedigreeURL', 'walkVideoURL', 'photoURL', 'walkVideoLength']) {
       if (get(key)) catalog[key] = get(key);
     }
+    // Optional HAINTEL grades: C (conformation) 1-10 and P (pedigree) 1-5, in half points.
+    // A blank cell leaves the hip's current grade alone.
+    for (const [column, key, max] of [['conformation_grade', 'conformationGrade', 10], ['pedigree_grade', 'pedigreeGrade', 5]]) {
+      const text = get(column);
+      if (!text) continue;
+      const grade = Number(text.replace(',', '.'));
+      if (!(grade >= 1 && grade <= max && Number.isInteger(grade * 2))) {
+        console.warn(`Hip ${number}: ${column} "${text}" isn't 1 to ${max} in half points. Left as it was.`);
+        continue;
+      }
+      catalog[key] = grade;
+    }
+    if (get('grade_notes')) catalog.gradeNotes = get('grade_notes');
 
     const ref = hipsRef.doc(String(number));
     const snap = await ref.get();

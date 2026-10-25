@@ -93,6 +93,12 @@ struct Hip: Codable, Identifiable, Hashable {
     var opinionsIn: [OpinionSlot] = []
     /// Opinions posted but not yet approved by HAINTEL. Buyers don't see these.
     var opinionsPending: [OpinionSlot]? = nil
+    /// C: HAINTEL's conformation grade, 1–10 in half points. Nil until graded.
+    var conformationGrade: Double? = nil
+    /// P: HAINTEL's pedigree grade, 1–5 in half points. Nil until graded.
+    var pedigreeGrade: Double? = nil
+    /// One line on why the hip got its grades.
+    var gradeNotes: String? = nil
 
     var pendingSlots: [OpinionSlot] { opinionsPending ?? [] }
 
@@ -108,6 +114,11 @@ struct Hip: Codable, Identifiable, Hashable {
         if approved { opinionsIn.append(slot) }
     }
 
+    var isGraded: Bool { conformationGrade != nil || pedigreeGrade != nil }
+
+    /// A grade the way staff write it, with one decimal: 8.0, 4.5.
+    static func gradeText(_ grade: Double) -> String { String(format: "%.1f", grade) }
+
     var title: String { "\(color) \(sex)" }
     var cross: String { pedigree.sire.isEmpty ? "Pedigree not entered" : "\(pedigree.sire) — \(pedigree.dam)" }
 }
@@ -117,12 +128,16 @@ enum OpinionSlot: String, Codable, Hashable, CaseIterable {
     case vet1, vet2, bs1, bs2
 
     var isVet: Bool { self == .vet1 || self == .vet2 }
-    var field: HipField {
+
+    /// The hip screen button this opinion is under: Vet Opinions or Bloodstock Opinions.
+    var field: HipField { isVet ? .vetOpinions : .bloodstockOpinions }
+
+    var title: String {
         switch self {
-        case .vet1: .vet1
-        case .vet2: .vet2
-        case .bs1: .bs1Rank
-        case .bs2: .bs2Rank
+        case .vet1: "Vet 1"
+        case .vet2: "Vet 2"
+        case .bs1: "BS1"
+        case .bs2: "BS2"
         }
     }
 }
@@ -209,16 +224,17 @@ struct AppUser: Codable, Hashable {
     var email: String? = nil
 }
 
-/// Screens pushed on the app's navigation stack: a sale's hip screen, then one of its 12 buttons.
+/// Screens pushed on the app's navigation stack: a sale's hip screen, then one of its 10 buttons.
 enum Route: Hashable {
     case sale(String)
     case field(HipField)
 }
 
-/// The 12 buttons on the hip screen, in the order Sandeep listed them.
+/// The 10 buttons on the hip screen, in the order Sandeep listed them. Vet 1 and Vet 2 share the
+/// Vet Opinions button, and BS1 and BS2 share Bloodstock Opinions; each screen has a menu to pick one.
 enum HipField: Int, CaseIterable, Identifiable, Hashable {
-    case hipNumber, vetReport, pedigree, auctionHistory, vet1, vet2
-    case bs1Rank, bs2Rank, reserve, saleWalkVideo, salePicture, hp
+    case hipNumber, vetReport, pedigree, auctionHistory, vetOpinions
+    case bloodstockOpinions, reserve, saleWalkVideo, salePicture, hp
 
     var id: Int { rawValue }
 
@@ -228,10 +244,8 @@ enum HipField: Int, CaseIterable, Identifiable, Hashable {
         case .vetReport: "Vet Report"
         case .pedigree: "Pedigree"
         case .auctionHistory: "Auction History"
-        case .vet1: "Vet 1"
-        case .vet2: "Vet 2"
-        case .bs1Rank: "BS1 Rank"
-        case .bs2Rank: "BS2 Rank"
+        case .vetOpinions: "Vet Opinions"
+        case .bloodstockOpinions: "Bloodstock Opinions"
         case .reserve: "Reserve"
         case .saleWalkVideo: "Sale Walk Video"
         case .salePicture: "Sale Picture"
@@ -245,8 +259,8 @@ enum HipField: Int, CaseIterable, Identifiable, Hashable {
         case .vetReport: "doc.text.magnifyingglass"
         case .pedigree: "arrow.triangle.branch"
         case .auctionHistory: "clock.arrow.circlepath"
-        case .vet1, .vet2: "stethoscope"
-        case .bs1Rank, .bs2Rank: "person.text.rectangle"
+        case .vetOpinions: "stethoscope"
+        case .bloodstockOpinions: "person.text.rectangle"
         case .reserve: "lock.fill"
         case .saleWalkVideo: "play.rectangle.fill"
         case .salePicture: "photo.fill"
@@ -254,15 +268,16 @@ enum HipField: Int, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    var slot: OpinionSlot? {
+    /// The paid opinions under this button: both vets, both bloodstock agents, or none.
+    var slots: [OpinionSlot] {
         switch self {
-        case .vet1: .vet1
-        case .vet2: .vet2
-        case .bs1Rank: .bs1
-        case .bs2Rank: .bs2
-        default: nil
+        case .vetOpinions: [.vet1, .vet2]
+        case .bloodstockOpinions: [.bs1, .bs2]
+        default: []
         }
     }
+
+    var isOpinionGroup: Bool { !slots.isEmpty }
 
     var previous: HipField? { HipField(rawValue: rawValue - 1) }
     var next: HipField? { HipField(rawValue: rawValue + 1) }

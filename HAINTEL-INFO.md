@@ -29,8 +29,9 @@
 
 ## Who does what in the app
 - Buyers: browse hips, buy vet and bloodstock opinions
-- HAINTEL staff: add and edit hips, vet report, pedigree, reserve, HP (height/length), photo, walk video
+- HAINTEL staff: add and edit hips, C/P grades, vet report, pedigree, reserve, HP (height/length), photo, walk video
 - 2 vets (Vet 1, Vet 2) and 2 bloodstock agents (BS1, BS2): each posts only their own opinion
+  (in the app they're grouped under the Vet Opinions and Bloodstock Opinions buttons)
 
 ## Keep private (never commit or share)
 - Apple .p8 API key file
