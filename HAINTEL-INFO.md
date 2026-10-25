@@ -1,14 +1,14 @@
-# HAINTEL: where everything is
+# Backring Buyer: where everything is
 
 ## The app
-- App name: HAINTEL (iPhone, iOS 17+)
+- App name: Backring Buyer (iPhone, iOS 17+). Shown on the home screen; the Xcode project, folders and bundle ID keep the HAINTEL name
 - Bundle ID: com.example.haintel
 - Apple team ID (App ID prefix): 8P44VXJJ7X
 - App Store Connect SKU: HAINTEL001
 - Prices: Vet 1 / Vet 2 opinions $25 each, BS1 / BS2 bloodstock agent opinions $50 each
 
 ## Code
-- GitHub repo (private): https://github.com/rnjpf4yks8-jpg/HAINTEL  (branch: main)
+- GitHub repo (private): https://github.com/rnjpf4yks8-jpg/Backring-Buyer  (branch: main)
 - Every push to main runs a compile check on GitHub's cloud Mac (Actions tab)
 - Clickable preview (no Xcode needed): https://claude.ai/artifact/QomEpB4zZqJXexDnK7AJS8
 

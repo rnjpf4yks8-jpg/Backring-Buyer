@@ -61,7 +61,7 @@ struct SalesIndexView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "chart.line.uptrend.xyaxis")
                         .foregroundStyle(Theme.amber)
-                    Text("HAINTEL")
+                    Text("BACKRING BUYER")
                         .font(Theme.sans(17, .bold))
                         .tracking(1)
                         .foregroundStyle(.white)

@@ -1,4 +1,4 @@
-# HAINTEL (iOS)
+# Backring Buyer (iOS)
 
 SwiftUI app for reviewing a sale hip. The home screen shows the current hip, with HAINTEL's
 conformation and pedigree grades (C · P) and their ranks in the sale beside the hip number, and 10 buttons
