@@ -348,16 +348,19 @@ final class SaleStore {
         rank(hip.conformationGrade, among: hips.compactMap { $0.conformationGrade })
     }
 
-    /// Rank of the hip's pedigree grade (P) in the open sale. Ties share a rank; ungraded hips have none.
+    /// The hip's pedigree rank (P) in the open sale: the exact rank from the pedigree score when it's loaded,
+    /// otherwise the rank of its P grade, where ties share a rank. Ungraded hips have none.
     func pedigreeRank(_ hip: Hip) -> Int? {
-        rank(hip.pedigreeGrade, among: hips.compactMap { $0.pedigreeGrade })
+        hip.pedigreeRank?.rank ?? rank(hip.pedigreeGrade, among: hips.compactMap { $0.pedigreeGrade })
     }
 
     /// How many hips in the open sale have a conformation grade.
     var conformationGradedCount: Int { hips.filter { $0.conformationGrade != nil }.count }
 
     /// How many hips in the open sale have a pedigree grade.
-    var pedigreeGradedCount: Int { hips.filter { $0.pedigreeGrade != nil }.count }
+    var pedigreeGradedCount: Int {
+        hips.first { $0.pedigreeRank != nil }?.pedigreeRank?.outOf ?? hips.filter { $0.pedigreeGrade != nil }.count
+    }
 
     /// 1 + the number of grades strictly higher than this one.
     private func rank(_ grade: Double?, among grades: [Double]) -> Int? {

@@ -57,6 +57,17 @@ struct HorsePhysical: Codable, Hashable {
     }
 }
 
+/// A hip's exact pedigree rank in its sale, 1 = strongest, from HAINTEL's pedigree score
+/// (firebase/pedigree-rank/score.py). The parts are percentiles, 0 to 100.
+struct PedigreeRank: Codable, Hashable {
+    var rank: Int
+    var outOf: Int
+    var score: Double
+    var sire: Int
+    var dam: Int
+    var damSire: Int
+}
+
 struct AuctionRecord: Codable, Hashable, Identifiable {
     var id = UUID()
     var sale: String
@@ -97,6 +108,8 @@ struct Hip: Codable, Identifiable, Hashable {
     var conformationGrade: Double? = nil
     /// P: HAINTEL's pedigree grade, 1–5 in half points. Nil until graded.
     var pedigreeGrade: Double? = nil
+    /// Exact place in the sale by pedigree score; breaks the ties in the P grade. Nil until ranked.
+    var pedigreeRank: PedigreeRank? = nil
     /// One line on why the hip got its grades.
     var gradeNotes: String? = nil
 

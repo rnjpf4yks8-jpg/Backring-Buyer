@@ -39,6 +39,14 @@ a value out of range is skipped with a warning. The app shows the grades beside 
 each hip by them within the sale. Staff can also enter grades in the app (Hip Number → Edit).
 Staff can also add and edit hips one at a time in the app (the + button).
 
+## Pedigree rank
+`pedigree-rank/score.py` scores every hip's pedigree from auction results (50% sire, 30% dam's produce, 20% dam's
+sire; the file explains how) and builds `ranks.json`. Loading it gives each hip an exact rank in its sale, 1 = strongest,
+which the app shows as the P rank instead of the tied rank from the 1–5 grade:
+```
+node admin.js pedigree-ranks ft-oct-2026 ranks.json
+```
+
 ## People
 Everyone first creates an account in the app (these start as buyers). Then:
 ```
