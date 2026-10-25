@@ -172,6 +172,12 @@ private struct HipNumberPanel: View {
                 InfoRow(label: "Session", value: hip.session)
                 InfoRow(label: "Barn", value: hip.barn)
                 InfoRow(label: "Consignor", value: hip.consignor)
+                if let soldAs = hip.soldAs, !soldAs.isEmpty {
+                    InfoRow(label: "Sold as", value: soldAs)
+                }
+                if let coveringSire = hip.coveringSire, !coveringSire.isEmpty {
+                    InfoRow(label: "Covering sire", value: coveringSire)
+                }
             }
 
             Eyebrow(text: "Switch hip").padding(.top, 4)

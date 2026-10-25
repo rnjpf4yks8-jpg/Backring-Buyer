@@ -32,7 +32,8 @@ Every sale appears in the app's sales list, newest first. The sale created last 
 `hips.csv` follows `hips-template.csv`: one row per hip with the catalog details from the sale company's
 website. Re-importing updates catalog fields only; what staff entered in the app is kept.
 Optional columns `pedigreeURL`, `walkVideoURL`, `photoURL` and `walkVideoLength` link each hip's catalog
-page, walk video and sale picture on the sale company's site.
+page, walk video and sale picture on the sale company's site. For breeding stock sales, optional
+`soldAs` (broodmare, weanling, ...) and `coveringSire` columns show on the hip screen.
 Staff can also add and edit hips one at a time in the app (the + button).
 
 ## People

@@ -61,8 +61,8 @@ async function importHips(saleId, file) {
     };
     const reserve = parseInt(get('reserve').replace(/[$,]/g, ''), 10);
     if (reserve) catalog.reserve = reserve;
-    // Optional links: catalog page, walk video and sale picture on the sale company's site.
-    for (const key of ['pedigreeURL', 'walkVideoURL', 'photoURL', 'walkVideoLength']) {
+    // Optional links (catalog page, walk video, sale picture) and breeding-stock details (sold as, covering sire).
+    for (const key of ['pedigreeURL', 'walkVideoURL', 'photoURL', 'walkVideoLength', 'soldAs', 'coveringSire']) {
       if (get(key)) catalog[key] = get(key);
     }
 

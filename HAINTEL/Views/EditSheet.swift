@@ -83,6 +83,8 @@ struct EditSheet: View {
             TextField("Session", text: $draft.session)
             TextField("Barn", text: $draft.barn)
             TextField("Consignor", text: $draft.consignor)
+            TextField("Sold as (breeding stock sales)", text: optionalText(\.soldAs))
+            TextField("Covering sire (mares)", text: optionalText(\.coveringSire))
         } footer: {
             Text("Copy these from the sale catalog.")
         }
@@ -253,6 +255,17 @@ struct EditSheet: View {
             set: { text in
                 let trimmed = text.trimmingCharacters(in: .whitespaces)
                 draft[keyPath: keyPath] = trimmed.isEmpty ? nil : URL(string: trimmed)
+            }
+        )
+    }
+
+    /// Edits optional text on the draft. Blank clears it.
+    private func optionalText(_ keyPath: WritableKeyPath<Hip, String?>) -> Binding<String> {
+        Binding(
+            get: { draft[keyPath: keyPath] ?? "" },
+            set: { text in
+                let trimmed = text.trimmingCharacters(in: .whitespaces)
+                draft[keyPath: keyPath] = trimmed.isEmpty ? nil : trimmed
             }
         )
     }

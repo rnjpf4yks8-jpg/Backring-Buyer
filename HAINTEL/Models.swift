@@ -79,6 +79,10 @@ struct Hip: Codable, Identifiable, Hashable {
     var session = ""
     var barn = ""
     var consignor = ""
+    /// Breeding-stock sales: how the horse is offered (broodmare, weanling, ...) and, for mares, the covering sire.
+    /// Optional so hips saved before these fields existed still load.
+    var soldAs: String?
+    var coveringSire: String?
     var pedigree = Pedigree()
     /// The sale company's catalog page (pedigree PDF) for this hip.
     var pedigreeURL: URL?
