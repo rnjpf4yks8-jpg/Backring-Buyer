@@ -23,6 +23,9 @@ struct EditSheet: View {
     @State private var uploading = false
     @State private var pickedMedia: PhotosPickerItem?
     @State private var problem: String?
+    @State private var suggestion: ConformationSuggestion?
+    @State private var suggesting = false
+    @State private var suggestionProblem: String?
 
     init(field: HipField, hip: Hip, isNew: Bool, slot: OpinionSlot? = nil) {
         self.field = field
@@ -109,6 +112,75 @@ struct EditSheet: View {
                 Text("Backring Buyer grades")
             } footer: {
                 Text("Half points, like 8.0 or 4.5. Leave blank if not graded yet. Ranks in the sale are worked out from these.")
+            }
+            if store.isStaff && !isNew { aiConformation }
+        }
+    }
+
+    /// Staff ask the AI for a C grade from the saved walk video, then use it (or not) before saving.
+    private var aiConformation: some View {
+        Section {
+            if let suggestion {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("C \(Hip.gradeText(suggestion.grade))").font(.title3.bold())
+                        Spacer()
+                        Text("\(suggestion.confidence.capitalized) confidence")
+                            .font(.footnote)
+                            .foregroundStyle(suggestion.confidence == "low" ? Theme.red : Theme.slate)
+                    }
+                    if !suggestion.summary.isEmpty { Text(suggestion.summary) }
+                }
+                if !suggestion.strengths.isEmpty {
+                    points("Strengths", suggestion.strengths, symbol: "plus.circle.fill", color: Theme.green)
+                }
+                if !suggestion.faults.isEmpty {
+                    points("Faults", suggestion.faults, symbol: "minus.circle.fill", color: Theme.red)
+                }
+                if !suggestion.limits.isEmpty {
+                    Text(suggestion.limits).font(.footnote).foregroundStyle(Theme.slate)
+                }
+                Button {
+                    use(suggestion)
+                } label: {
+                    Label("Use C \(Hip.gradeText(suggestion.grade))", systemImage: "checkmark.circle")
+                }
+                .disabled(conformationText == Hip.gradeText(suggestion.grade))
+            }
+            if suggesting {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Watching the walk video. This can take a minute.").foregroundStyle(Theme.slate)
+                }
+            } else {
+                Button {
+                    Task { await suggest() }
+                } label: {
+                    Label(suggestion == nil ? "Suggest C grade from walk video" : "Ask again", systemImage: "sparkles")
+                }
+                .disabled(original.walkVideoURL == nil)
+            }
+            if let suggestionProblem {
+                Text(suggestionProblem).foregroundStyle(Theme.red)
+            }
+        } header: {
+            Text("AI conformation check")
+        } footer: {
+            Text(original.walkVideoURL == nil
+                 ? "Add this hip’s walk video on the Sale Walk Video button first. The AI needs an uploaded video file, not a Vimeo or YouTube link."
+                 : "The AI looks at still frames from the sale walk video. Nothing changes until you use its grade and tap Save.")
+        }
+    }
+
+    private func points(_ title: String, _ items: [String], symbol: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.footnote.weight(.semibold)).foregroundStyle(Theme.slate)
+            ForEach(items, id: \.self) { item in
+                Label {
+                    Text(item)
+                } icon: {
+                    Image(systemName: symbol).foregroundStyle(color)
+                }
             }
         }
     }
@@ -300,6 +372,25 @@ struct EditSheet: View {
                 : Opinion(date: today, rank: 1, outOf: store.hips.count, score: 7)
         }
         if physical.measuredBy.isEmpty, let name = store.user?.name { physical.measuredBy = name }
+    }
+
+    private func suggest() async {
+        suggesting = true
+        suggestionProblem = nil
+        defer { suggesting = false }
+        do {
+            suggestion = try await store.suggestConformation(for: original)
+        } catch {
+            suggestionProblem = error.localizedDescription
+        }
+    }
+
+    /// Puts the AI's grade in the C box, and its one-line reason in "Why" if that's empty. Saved on Save.
+    private func use(_ suggestion: ConformationSuggestion) {
+        conformationText = Hip.gradeText(suggestion.grade)
+        if (draft.gradeNotes ?? "").trimmingCharacters(in: .whitespaces).isEmpty, !suggestion.summary.isEmpty {
+            draft.gradeNotes = suggestion.summary
+        }
     }
 
     private func upload(_ item: PhotosPickerItem, kind: MediaKind) async {

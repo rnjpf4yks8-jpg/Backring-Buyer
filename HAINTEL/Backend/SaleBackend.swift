@@ -7,6 +7,21 @@ enum MediaKind {
     var contentType: String { self == .photo ? "image/jpeg" : "video/quicktime" }
 }
 
+/// The AI's conformation grade from a hip's sale walk video. Staff accept or change it before it's saved.
+struct ConformationSuggestion: Decodable, Hashable {
+    /// 1–10 in half points, like the C grade staff enter.
+    var grade: Double
+    /// "low", "medium" or "high": how well the video let the AI judge the horse.
+    var confidence: String
+    var summary: String
+    var strengths: [String]
+    var faults: [String]
+    /// What the video didn't show. Empty when nothing.
+    var limits: String
+    /// Still frames from the video the AI looked at.
+    var frames: Int
+}
+
 /// Everything the app reads or writes. FirebaseBackend talks to Firebase;
 /// SampleBackend keeps sample data in memory so the app runs before Firebase is set up.
 protocol SaleBackend {
@@ -25,6 +40,8 @@ protocol SaleBackend {
     func save(hip: Hip, saleID: String) async throws
     func deleteHip(number: Int, saleID: String) async throws
     func upload(_ data: Data, kind: MediaKind, saleID: String, hip: Int) async throws -> URL
+    /// Staff only: the AI's conformation grade from the hip's saved sale walk video. Nothing is saved.
+    func suggestConformation(saleID: String, hip: Int) async throws -> ConformationSuggestion
 
     func loadOpinion(saleID: String, hip: Int, slot: OpinionSlot) async throws -> Opinion?
     /// The author posts or edits an opinion. It waits for Backring Buyer approval before buyers see it.
@@ -90,6 +107,20 @@ final class SampleBackend: SaleBackend {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(hip)-\(kind.fileName)")
         try data.write(to: url)
         return url
+    }
+
+    func suggestConformation(saleID: String, hip: Int) async throws -> ConformationSuggestion {
+        guard hipsBySale[saleID]?.first(where: { $0.number == hip })?.walkVideoURL != nil else {
+            throw BackendError(message: "This hip has no walk video yet. Add one on the Sale Walk Video button, save, then try again.")
+        }
+        try await Task.sleep(for: .seconds(2))
+        return ConformationSuggestion(
+            grade: 7.0, confidence: "medium",
+            summary: "Well balanced with a good shoulder; slightly back at the knee on the left fore.",
+            strengths: ["Good length and slope of shoulder", "Strong, well-muscled hindquarter", "Walks straight behind"],
+            faults: ["Slightly back at the knee (left fore)", "Toes out a little in front"],
+            limits: "Demo mode: this is a sample suggestion, not a real look at the video.",
+            frames: 12)
     }
 
     func loadOpinion(saleID: String, hip: Int, slot: OpinionSlot) async throws -> Opinion? {

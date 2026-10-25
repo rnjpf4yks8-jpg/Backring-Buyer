@@ -7,6 +7,10 @@
 - App Store Connect SKU: HAINTEL001
 - Prices: Vet 1 / Vet 2 opinions $25 each, BS1 / BS2 bloodstock agent opinions $50 each
 
+## AI conformation check
+- Staff: Hip Number button → Edit → "Suggest C grade from walk video" (needs an uploaded walk video)
+- Runs in the suggestConformation Cloud Function with the ANTHROPIC_API_KEY secret; setup in firebase/README.md
+
 ## Code
 - GitHub repo (private): https://github.com/rnjpf4yks8-jpg/Backring-Buyer  (branch: main)
 - Every push to main runs a compile check on GitHub's cloud Mac (Actions tab)

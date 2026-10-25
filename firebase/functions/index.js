@@ -9,6 +9,9 @@ const { SignedDataVerifier, Environment } = require('@apple/app-store-server-lib
 admin.initializeApp();
 const db = admin.firestore();
 
+// Staff-only AI conformation suggestion from the sale walk video (see conformation.js).
+exports.suggestConformation = require('./conformation').suggestConformation;
+
 const BUNDLE_ID = 'com.example.haintel';
 const APP_APPLE_ID = 6826705029;
 const PRODUCTS = { vet: 'com.example.haintel.vetopinion', agent: 'com.example.haintel.agentopinion' };

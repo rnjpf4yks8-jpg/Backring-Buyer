@@ -21,6 +21,20 @@ Until these steps are done the app runs in demo mode on sample data.
    export GOOGLE_APPLICATION_CREDENTIALS=/path/to/that-key.json
    ```
 
+## AI conformation check (sale walk video)
+Staff can ask the AI for a C grade from a hip's sale walk video: edit the hip (Hip Number button),
+tap **Suggest C grade from walk video**, then **Use** the grade or type your own, and Save. The AI
+(Claude) looks at 12 still frames from across the video and returns a grade, its confidence, strengths,
+faults and what the video didn't show. Nothing changes until staff tap Save.
+
+The video must be uploaded on the Sale Walk Video button (or be a direct link to a video file).
+Vimeo and YouTube page links can't be read. Each check costs roughly 10 cents of AI usage.
+
+One-time setup, from this `firebase` folder with the Firebase CLI (`npm install -g firebase-tools`, then `firebase login`):
+1. Get an API key at https://console.anthropic.com (Settings → API keys).
+2. `firebase functions:secrets:set ANTHROPIC_API_KEY` and paste the key when asked.
+3. `firebase deploy --only functions` (this also deploys the purchase checker).
+
 ## For each sale
 ```
 node admin.js create-sale ft-oct-2026 "October Yearling Sale" "Fasig-Tipton" "Oct 27, 2026"

@@ -341,6 +341,12 @@ final class SaleStore {
         return url
     }
 
+    /// Staff only: the AI's conformation grade from this hip's saved sale walk video. Throws with a
+    /// message staff can act on (no video, a Vimeo/YouTube link, AI not set up).
+    func suggestConformation(for hip: Hip) async throws -> ConformationSuggestion {
+        try await backend.suggestConformation(saleID: sale.id, hip: hip.number)
+    }
+
     // MARK: Grades
 
     /// Rank of the hip's conformation grade (C) in the open sale. Ties share a rank; ungraded hips have none.

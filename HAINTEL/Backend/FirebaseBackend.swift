@@ -1,5 +1,6 @@
 #if canImport(FirebaseFirestore)
 import FirebaseAuth
+import FirebaseCore
 import FirebaseFirestore
 import FirebaseStorage
 import Foundation
@@ -87,6 +88,35 @@ final class FirebaseBackend: SaleBackend {
         metadata.contentType = kind.contentType
         _ = try await ref.putDataAsync(data, metadata: metadata)
         return try await ref.downloadURL()
+    }
+
+    /// Calls the suggestConformation Cloud Function (firebase/functions/conformation.js) over HTTPS,
+    /// signed in as the current user. It can take a minute or two: it pulls frames from the video first.
+    func suggestConformation(saleID: String, hip: Int) async throws -> ConformationSuggestion {
+        guard let user = Auth.auth().currentUser else { throw BackendError(message: "Sign in as staff first.") }
+        guard let projectID = FirebaseApp.app()?.options.projectID,
+              let url = URL(string: "https://us-central1-\(projectID).cloudfunctions.net/suggestConformation") else {
+            throw BackendError(message: "Firebase isn’t set up in this build.")
+        }
+        var request = URLRequest(url: url, timeoutInterval: 300)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(try await user.getIDToken())", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["data": ["saleId": saleID, "hip": hip]])
+
+        struct Reply: Decodable {
+            struct Failure: Decodable { var message: String }
+            var result: ConformationSuggestion?
+            var error: Failure?
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let reply = try? JSONDecoder().decode(Reply.self, from: data)
+        if let result = reply?.result { return result }
+        if let message = reply?.error?.message { throw BackendError(message: message) }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        throw BackendError(message: status == 404
+            ? "AI grading isn’t switched on yet. Deploy the Cloud Functions (see firebase/README.md)."
+            : "The AI couldn’t grade this video right now (error \(status)). Try again in a minute.")
     }
 
     // MARK: Opinions
