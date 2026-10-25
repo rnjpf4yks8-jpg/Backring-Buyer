@@ -239,6 +239,8 @@ private struct HipNumberPanel: View {
                     GradeTile(label: "Pedigree", grade: hip.pedigreeGrade, outOf: 5,
                               rank: store.pedigreeRank(hip), graded: store.pedigreeGradedCount)
                 }
+                GradeTile(label: "Combined", grade: hip.combinedGrade, outOf: 15,
+                          rank: store.combinedRank(hip), graded: store.combinedGradedCount)
                 if let notes = hip.gradeNotes, !notes.isEmpty {
                     Card {
                         Eyebrow(text: "HAINTEL grades")
