@@ -1,5 +1,6 @@
 import AVKit
 import SwiftUI
+import WebKit
 
 struct FieldContent: View {
     let field: HipField
@@ -347,18 +348,81 @@ private struct VideoPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let url {
+            if let url, let embed = WebVideo.embedURL(for: url) {
+                // Sale company walk videos are Vimeo or YouTube pages, which AVPlayer can't open.
+                WebVideo(url: embed)
+                    .aspectRatio(16 / 9, contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                Link(destination: url) {
+                    Card {
+                        HStack {
+                            Label("Open in \(url.host()?.contains("vimeo") == true ? "Vimeo" : "YouTube")",
+                                  systemImage: "play.rectangle")
+                                .font(Theme.sans(16, .semibold)).foregroundStyle(Theme.ink)
+                            Spacer()
+                            Image(systemName: "arrow.up.right").foregroundStyle(Theme.slate)
+                        }
+                    }
+                }
+                if !length.isEmpty { Card { InfoRow(label: "Length", value: length, mono: true) } }
+            } else if let url {
                 VideoPlayer(player: player)
                     .aspectRatio(16 / 9, contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .onAppear { if player == nil { player = AVPlayer(url: url) } }
                     .onDisappear { player?.pause() }
-                Card { InfoRow(label: "Length", value: length, mono: true) }
+                if !length.isEmpty { Card { InfoRow(label: "Length", value: length, mono: true) } }
             } else {
                 MediaPlaceholder(symbol: "play.rectangle", text: "No walk video posted for this hip yet.")
             }
         }
     }
+}
+
+/// A Vimeo or YouTube player, played inline.
+private struct WebVideo: UIViewRepresentable {
+    let url: URL
+
+    /// The embeddable player for a Vimeo or YouTube page link, or nil for a direct video file.
+    static func embedURL(for url: URL) -> URL? {
+        let host = (url.host() ?? "").replacingOccurrences(of: "www.", with: "")
+        let parts = url.pathComponents.filter { $0 != "/" }
+        switch host {
+        case "vimeo.com", "player.vimeo.com":
+            guard let id = parts.first(where: { Int($0) != nil }) else { return nil }
+            var embed = URLComponents(string: "https://player.vimeo.com/video/\(id)")!
+            embed.queryItems = [URLQueryItem(name: "playsinline", value: "1")]
+            // Unlisted videos carry a privacy hash after the id.
+            if let i = parts.firstIndex(of: id), i + 1 < parts.count {
+                embed.queryItems?.append(URLQueryItem(name: "h", value: parts[i + 1]))
+            }
+            return embed.url
+        case "youtu.be", "youtube.com", "m.youtube.com":
+            let id = host == "youtu.be" ? parts.first
+                : parts.first == "shorts" ? parts.dropFirst().first
+                : URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "v" })?.value
+            guard let id else { return nil }
+            return URL(string: "https://www.youtube.com/embed/\(id)?playsinline=1")
+        default:
+            return nil
+        }
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.allowsInlineMediaPlayback = true
+        let view = WKWebView(frame: .zero, configuration: config)
+        view.isOpaque = false
+        view.backgroundColor = .black
+        view.scrollView.isScrollEnabled = false
+        var request = URLRequest(url: url)
+        // YouTube refuses embeds that don't name the app they're shown in.
+        request.setValue("https://\((Bundle.main.bundleIdentifier ?? "haintel").lowercased())", forHTTPHeaderField: "Referer")
+        view.load(request)
+        return view
+    }
+
+    func updateUIView(_ view: WKWebView, context: Context) {}
 }
 
 // MARK: - 11 Sale Picture
