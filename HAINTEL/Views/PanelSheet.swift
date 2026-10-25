@@ -35,7 +35,7 @@ struct PanelSheet: View {
                 }
                 Section {
                 } footer: {
-                    Text("Vets and agents need to create an account in the app first. Then they appear in these lists. A buyer you pick here becomes a vet or agent.")
+                    Text("Vets and agents need to create an account in the app first. Then they appear in these lists. A buyer you pick here becomes a vet or agent, and anyone you pick is approved.")
                 }
             }
             .navigationTitle("Panel · \(store.sale.name)")
@@ -65,7 +65,8 @@ struct PanelSheet: View {
     }
 
     private func label(_ person: AppUser) -> String {
-        [person.name, person.email, person.role == .buyer ? nil : person.role.label]
+        [person.name, person.email, person.role == .buyer ? nil : person.role.label,
+         person.isApproved ? nil : person.accountStatus.label]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: " · ")

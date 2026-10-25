@@ -1,12 +1,13 @@
 rules_version = '2';
 
-// Sale pictures and walk videos: anyone can view, only HAINTEL staff upload.
+// Sale pictures and walk videos: anyone can view, only approved HAINTEL staff upload.
 service firebase.storage {
   match /b/{bucket}/o {
     match /sales/{saleId}/hips/{hip}/{file} {
       allow read: if true;
       allow write: if request.auth != null
         && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'staff'
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.get('status', 'approved') == 'approved'
         && request.resource.size < 500 * 1024 * 1024;
     }
   }

@@ -203,7 +203,7 @@ struct Sale: Codable, Hashable {
     }()
 }
 
-enum Role: String, Codable, Hashable {
+enum Role: String, Codable, Hashable, CaseIterable {
     case buyer, staff, agent, vet
 
     var label: String {
@@ -214,6 +214,35 @@ enum Role: String, Codable, Hashable {
         case .vet: "Vet"
         }
     }
+
+    /// The roles offered when someone creates an account, in the order they're listed.
+    static let signUpChoices: [Role] = [.buyer, .vet, .agent, .staff]
+
+    /// What the role does, shown under the picker when creating an account.
+    var signUpDetail: String {
+        switch self {
+        case .buyer: "Browse hips and buy vet and bloodstock opinions."
+        case .vet: "Post vet opinions for the sales HAINTEL adds you to."
+        case .agent: "Post bloodstock opinions for the sales HAINTEL adds you to."
+        case .staff: "Enter hips, HP (height and length), vet reports and sale media."
+        }
+    }
+
+    /// Buyers can start right away. Everyone else waits for HAINTEL to approve them.
+    var needsApproval: Bool { self != .buyer }
+}
+
+/// Where an account stands with HAINTEL. Vets, agents and staff start pending.
+enum AccountStatus: String, Codable, Hashable {
+    case pending, approved, rejected
+
+    var label: String {
+        switch self {
+        case .pending: "Waiting for HAINTEL approval"
+        case .approved: "Approved"
+        case .rejected: "Not approved by HAINTEL"
+        }
+    }
 }
 
 struct AppUser: Codable, Hashable {
@@ -222,6 +251,11 @@ struct AppUser: Codable, Hashable {
     var role: Role
     /// Saved when the account is created, so staff can tell people apart on the Panel screen.
     var email: String? = nil
+    /// Missing means approved (accounts made before approvals began).
+    var status: AccountStatus? = nil
+
+    var accountStatus: AccountStatus { status ?? .approved }
+    var isApproved: Bool { accountStatus == .approved }
 }
 
 /// Screens pushed on the app's navigation stack: a sale's hip screen, then one of its 10 buttons.
