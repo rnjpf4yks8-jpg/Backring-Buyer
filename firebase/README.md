@@ -40,7 +40,21 @@ each hip by them within the sale. Staff can also enter grades in the app (Hip Nu
 Staff can also add and edit hips one at a time in the app (the + button).
 
 ## People
-Everyone first creates an account in the app (these start as buyers). Then:
+Everyone creates an account in the app and picks what they are: **Buyer**, **Vet**, **Bloodstock agent** or
+**HAINTEL staff**. Buyers can start right away. Vets, agents and staff wait until HAINTEL approves them; until
+then they only see the free catalog info, and the security rules give them none of their role's powers.
+
+To approve, sign in as staff and tap the person icon at the top right of the sales list (it turns amber while
+someone is waiting). Each new account shows the role they asked for; change it if needed, then **Approve** or
+**Reject**. Putting someone on a sale's panel also approves them. From a computer you can do the same:
+```
+node admin.js pending                      # who is waiting, and the role each asked for
+node admin.js set-role new.vet@example.com vet "Dr. L. Fontaine"   # approves as that role
+node admin.js reject someone@example.com
+```
+Your own first staff account has to be approved with `set-role`, since nobody is staff yet to approve it.
+
+Vets and agents also need a slot on each sale's panel (the Panel button on a sale, or):
 ```
 node admin.js set-role staff.member@haintel.com staff "T. Nguyen"
 node admin.js assign ft-oct-2026 vet1 vet.one@example.com "Bluegrass Equine"

@@ -51,6 +51,7 @@ final class SaleStore {
             try await reloadSales()
             try await reloadPurchases()
         }
+        if isStaff { await loadPeople() }
         if !isDemo { await payments.loadProducts() }
         await loadHipCounts()
     }
@@ -109,11 +110,12 @@ final class SaleStore {
             user = try await backend.signIn(email: email, password: password)
             try await reloadPurchases()
         }
+        if isStaff { await loadPeople() }
     }
 
-    func createAccount(name: String, email: String, password: String) async {
+    func createAccount(name: String, email: String, password: String, role: Role) async {
         await attempt {
-            user = try await backend.createAccount(name: name, email: email, password: password)
+            user = try await backend.createAccount(name: name, email: email, password: password, role: role)
             try await reloadPurchases()
         }
     }
@@ -124,6 +126,7 @@ final class SaleStore {
             user = person
             try await reloadPurchases()
         }
+        if isStaff { await loadPeople() }
     }
 
     func signOut() async {
@@ -136,10 +139,11 @@ final class SaleStore {
 
     // MARK: Permissions
 
-    var isStaff: Bool { user?.role == .staff }
+    /// A role only counts once HAINTEL has approved the account.
+    var isStaff: Bool { user?.role == .staff && user?.isApproved == true }
 
     func isAuthor(_ slot: OpinionSlot) -> Bool {
-        guard let user else { return false }
+        guard let user, user.isApproved else { return false }
         return sale.member(slot)?.uid == user.uid
     }
 
@@ -202,6 +206,9 @@ final class SaleStore {
         guard let user else { return }
         let id = purchaseID(slot, hip: hip)
         await attempt {
+            guard user.isApproved else {
+                throw BackendError(message: user.accountStatus == .pending ? "Your account is waiting for HAINTEL approval, so it can’t buy opinions yet." : "HAINTEL didn’t approve this account, so it can’t buy opinions.")
+            }
             if isDemo {
                 try await backend.recordPurchase(uid: user.uid, purchaseID: id, receipt: nil)
             } else {
@@ -283,6 +290,29 @@ final class SaleStore {
         "\(sale.member(slot)?.name ?? slot.title) — \(slotStatus(slot, hip: hip).summary)"
     }
 
+    // MARK: New accounts (staff)
+
+    /// Vets, agents and staff who signed up and are waiting for approval, in name order.
+    var pendingAccounts: [AppUser] { people.filter { $0.accountStatus == .pending } }
+
+    /// Approve a new account with the role staff picked (usually the one the person asked for).
+    func approveAccount(_ person: AppUser, as role: Role) async {
+        await attempt {
+            try await backend.setRole(role, uid: person.uid)
+            if let i = people.firstIndex(where: { $0.uid == person.uid }) {
+                people[i].role = role
+                people[i].status = .approved
+            }
+        }
+    }
+
+    func rejectAccount(_ person: AppUser) async {
+        await attempt {
+            try await backend.rejectAccount(uid: person.uid)
+            if let i = people.firstIndex(where: { $0.uid == person.uid }) { people[i].status = .rejected }
+        }
+    }
+
     // MARK: Panel (staff)
 
     func loadPeople() async {
@@ -292,17 +322,18 @@ final class SaleStore {
     }
 
     /// Saves who holds Vet 1, Vet 2, BS1 and BS2 for the open sale. A buyer who is given a slot
-    /// becomes a vet or agent; staff keep their role.
+    /// becomes a vet or agent; staff keep their role. Putting someone on the panel also approves their account.
     func savePanel(_ panel: [String: PanelMember]) async -> Bool {
         var saved = false
         await attempt {
             for (key, member) in panel {
                 guard let slot = OpinionSlot(rawValue: key),
                       let i = people.firstIndex(where: { $0.uid == member.uid }),
-                      people[i].role == .buyer else { continue }
-                let role: Role = slot.isVet ? .vet : .agent
+                      people[i].role == .buyer || !people[i].isApproved else { continue }
+                let role: Role = people[i].role == .buyer ? (slot.isVet ? .vet : .agent) : people[i].role
                 try await backend.setRole(role, uid: member.uid)
                 people[i].role = role
+                people[i].status = .approved
             }
             try await backend.savePanel(panel, saleID: sale.id)
             sale.panel = panel

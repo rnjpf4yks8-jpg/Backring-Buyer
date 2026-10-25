@@ -21,6 +21,7 @@ struct RootView: View {
 struct SalesIndexView: View {
     @Environment(SaleStore.self) private var store
     @State private var showAccount = false
+    @State private var showAccounts = false
     let open: (String) -> Void
 
     var body: some View {
@@ -57,6 +58,15 @@ struct SalesIndexView: View {
                 }
                 .accessibilityLabel("Account")
             }
+            if store.isStaff {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showAccounts = true } label: {
+                        Image(systemName: store.pendingAccounts.isEmpty ? "person.badge.shield.checkmark" : "person.badge.clock.fill")
+                            .foregroundStyle(store.pendingAccounts.isEmpty ? .white : Theme.amber)
+                    }
+                    .accessibilityLabel("New accounts, \(store.pendingAccounts.count) waiting")
+                }
+            }
             ToolbarItem(placement: .principal) {
                 HStack(spacing: 8) {
                     Image(systemName: "chart.line.uptrend.xyaxis")
@@ -72,6 +82,7 @@ struct SalesIndexView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .sheet(isPresented: $showAccount) { AccountView() }
+        .sheet(isPresented: $showAccounts) { AccountsSheet() }
     }
 }
 

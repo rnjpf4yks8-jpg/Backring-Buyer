@@ -3,7 +3,9 @@
 //
 //   node admin.js create-sale <saleId> "<name>" "<company>" "<date>"
 //   node admin.js import-hips <saleId> <file.csv>
-//   node admin.js set-role <email> <buyer|staff|vet|agent> "<name>"
+//   node admin.js set-role <email> <buyer|staff|vet|agent> "<name>"   (also approves the account)
+//   node admin.js pending
+//   node admin.js reject <email>
 //   node admin.js assign <saleId> <vet1|vet2|bs1|bs2> <email> "<practice or agency>"
 //   node admin.js test-purchases <on|off>
 const fs = require('fs');
@@ -108,9 +110,27 @@ async function setRole(email, role, name) {
     uid: user.uid,
     name: name || (snap.exists ? snap.data().name : '') || user.displayName || email,
     role,
+    status: 'approved',
   }, { merge: true });
   console.log(`${email} is now ${role}.`);
   return user;
+}
+
+// Accounts waiting for approval, with the role each asked for. Approve with set-role.
+async function pending() {
+  const snap = await db.collection('users').where('status', '==', 'pending').get();
+  if (snap.empty) console.log('Nobody is waiting for approval.');
+  snap.forEach(doc => {
+    const u = doc.data();
+    console.log(`${u.email || doc.id}\t${u.role}\t${u.name}`);
+  });
+}
+
+async function reject(email) {
+  if (!email) throw usage();
+  const user = await admin.auth().getUserByEmail(email);
+  await db.collection('users').doc(user.uid).set({ status: 'rejected' }, { merge: true });
+  console.log(`${email} was not approved. They can still browse the free catalog.`);
 }
 
 async function assign(saleId, slot, email, org) {
@@ -152,7 +172,7 @@ function parseCSV(text) {
 }
 
 function usage() {
-  return new Error(fs.readFileSync(__filename, 'utf8').split('\n').slice(0, 9).join('\n'));
+  return new Error(fs.readFileSync(__filename, 'utf8').split('\n').slice(0, 11).join('\n'));
 }
 
 const [command, ...args] = process.argv.slice(2);
@@ -160,6 +180,8 @@ const commands = {
   'create-sale': createSale,
   'import-hips': importHips,
   'set-role': setRole,
+  'pending': pending,
+  'reject': reject,
   'assign': assign,
   'test-purchases': testPurchases,
 };

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Sign in, create a buyer account, or (in demo mode) switch between sample people.
+/// Sign in, create an account as a buyer, vet, agent or staff, or (in demo mode) switch between sample people.
 struct AccountView: View {
     @Environment(SaleStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -8,17 +8,29 @@ struct AccountView: View {
     @State private var name = ""
     @State private var email = ""
     @State private var password = ""
+    @State private var role: Role = .buyer
     @State private var working = false
 
     var body: some View {
         NavigationStack {
             Form {
                 if let user = store.user {
-                    Section("Signed in") {
+                    Section {
                         LabeledContent("Name", value: user.name)
                         LabeledContent("Role", value: user.role.label)
+                        if !user.isApproved {
+                            LabeledContent("Account", value: user.accountStatus.label)
+                        }
                         if let slot = OpinionSlot.allCases.first(where: { store.isAuthor($0) }) {
                             LabeledContent("Posts", value: slot.title)
+                        }
+                    } header: {
+                        Text("Signed in")
+                    } footer: {
+                        switch user.accountStatus {
+                        case .pending: Text("HAINTEL will check your account and approve your \(user.role.label) account. Until then you can browse the free catalog info.")
+                        case .rejected: Text("HAINTEL didn’t approve this account. You can still browse the free catalog info. Contact HAINTEL if this is a mistake.")
+                        case .approved: EmptyView()
                         }
                     }
                 }
@@ -67,14 +79,25 @@ struct AccountView: View {
                         SecureField("Password", text: $password)
                             .textContentType(creating ? .newPassword : .password)
                     } footer: {
-                        Text("Catalog info is free. Vet and agent opinions are paid with the card on your Apple ID, so there’s no card to enter here. Vets and agents: create an account, then HAINTEL staff add you to a sale.")
+                        Text("Catalog info is free. Vet and agent opinions are paid with the card on your Apple ID, so there’s no card to enter here.")
+                    }
+                    if creating {
+                        Section {
+                            Picker("I am a", selection: $role) {
+                                ForEach(Role.signUpChoices, id: \.self) { Text($0.label).tag($0) }
+                            }
+                        } footer: {
+                            Text(role.needsApproval
+                                 ? "\(role.signUpDetail) HAINTEL approves \(role.label) accounts before they can do this."
+                                 : role.signUpDetail)
+                        }
                     }
                     Section {
                         Button {
                             working = true
                             Task {
                                 if creating {
-                                    await store.createAccount(name: name, email: email, password: password)
+                                    await store.createAccount(name: name, email: email, password: password, role: role)
                                 } else {
                                     await store.signIn(email: email, password: password)
                                 }
@@ -112,6 +135,7 @@ struct AccountView: View {
     }
 
     private func personDetail(_ person: AppUser) -> String {
+        if !person.isApproved { return "\(person.role.label) · \(person.accountStatus.label)" }
         if let slot = OpinionSlot.allCases.first(where: { store.sale.member($0)?.uid == person.uid }) {
             return "\(person.role.label) · posts \(slot.title)"
         }

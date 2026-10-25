@@ -28,6 +28,8 @@
   - Give people roles: node admin.js set-role / assign  (see firebase/README.md)
 
 ## Who does what in the app
+- New accounts pick a role at sign-up. Buyers start right away; vets, agents and staff wait for approval
+  (staff: person icon at the top right of the sales list, or `node admin.js pending` / `set-role`)
 - Buyers: browse hips, buy vet and bloodstock opinions
 - HAINTEL staff: add and edit hips, C/P grades, vet report, pedigree, reserve, HP (height/length), photo, walk video
 - 2 vets (Vet 1, Vet 2) and 2 bloodstock agents (BS1, BS2): each posts only their own opinion

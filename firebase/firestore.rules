@@ -1,6 +1,8 @@
 rules_version = '2';
 
 // Who can do what:
+//   new account   picks a role when signing up: buyers start approved; vets, agents and staff
+//                 start pending and get no role powers until staff approve them
 //   anyone        reads sales and hips (catalog data)
 //   staff         write sales, hips, user roles
 //   panel member  (the sale's vet1/vet2/bs1/bs2) writes only their own opinion, always as
@@ -11,10 +13,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
-    function isStaff() { return signedIn() && profile().role == 'staff'; }
+    // Accounts saved before approvals began have no status and count as approved.
+    function isApproved() { return signedIn() && profile().get('status', 'approved') == 'approved'; }
+    function isStaff() { return isApproved() && profile().role == 'staff'; }
     function saleDoc(saleId) { return get(/databases/$(database)/documents/sales/$(saleId)).data; }
     function panelUid(saleId, slot) { return saleDoc(saleId).panel.get(slot, {}).get('uid', ''); }
-    function isAuthor(saleId, slot) { return signedIn() && panelUid(saleId, slot) == request.auth.uid; }
+    function isAuthor(saleId, slot) { return signedIn() && panelUid(saleId, slot) == request.auth.uid && isApproved(); }
     function isPanelMember(saleId) {
       return isAuthor(saleId, 'vet1') || isAuthor(saleId, 'vet2') || isAuthor(saleId, 'bs1') || isAuthor(saleId, 'bs2');
     }
@@ -46,8 +50,14 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isStaff());
-      // Anyone can create their own profile, but only as a buyer. Staff assign other roles.
-      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == 'buyer';
+      // Anyone can create their own profile with the role they're asking for. Buyers start approved
+      // (older app versions send no status); vets, agents and staff must start pending.
+      // Only staff change a role or status, which is how they approve or reject an account.
+      allow create: if signedIn() && request.auth.uid == uid
+        && (request.resource.data.role == 'buyer'
+            && request.resource.data.get('status', 'approved') == 'approved'
+          || request.resource.data.role in ['vet', 'agent', 'staff']
+            && request.resource.data.get('status', '') == 'pending');
       allow update, delete: if isStaff();
 
       match /purchases/{purchaseId} {
@@ -55,7 +65,7 @@ service cloud.firestore {
         // An App Store purchase, saved with Apple's signed transaction for the right product. The
         // verifyPurchase Cloud Function checks it with Apple and deletes it if it's not genuine.
         // While config/app.testPurchases is on, records without a receipt are allowed too (testing only).
-        allow create: if signedIn() && request.auth.uid == uid
+        allow create: if isApproved() && request.auth.uid == uid
           && (get(/databases/$(database)/documents/config/app).data.get('testPurchases', false) == true
               || (request.resource.data.signedTransaction is string
                   && request.resource.data.transactionId is string

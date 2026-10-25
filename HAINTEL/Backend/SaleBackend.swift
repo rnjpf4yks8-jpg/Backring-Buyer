@@ -14,7 +14,8 @@ protocol SaleBackend {
 
     func currentUser() async throws -> AppUser?
     func signIn(email: String, password: String) async throws -> AppUser
-    func createAccount(name: String, email: String, password: String) async throws -> AppUser
+    /// `role` is what the person picked. Buyers start approved; vets, agents and staff wait for HAINTEL.
+    func createAccount(name: String, email: String, password: String, role: Role) async throws -> AppUser
     func signOut() throws
 
     func loadSales() async throws -> [Sale]
@@ -32,9 +33,12 @@ protocol SaleBackend {
     /// Staff approve (buyers can see it) or return (hidden) a posted opinion.
     func review(approve: Bool, saleID: String, hip: Int, slot: OpinionSlot) async throws
 
-    /// Staff only: everyone with an account, for picking a sale's vets and agents.
+    /// Staff only: everyone with an account, for approving new accounts and picking a sale's vets and agents.
     func loadPeople() async throws -> [AppUser]
+    /// Staff give someone a role and approve their account.
     func setRole(_ role: Role, uid: String) async throws
+    /// Staff turn down a new account. It keeps free catalog access only.
+    func rejectAccount(uid: String) async throws
     func savePanel(_ panel: [String: PanelMember], saleID: String) async throws
 
     func loadPurchases(uid: String) async throws -> Set<String>
@@ -62,7 +66,7 @@ final class SampleBackend: SaleBackend {
         throw BackendError(message: "Demo mode has no passwords. Pick a sample person instead.")
     }
 
-    func createAccount(name: String, email: String, password: String) async throws -> AppUser {
+    func createAccount(name: String, email: String, password: String, role: Role) async throws -> AppUser {
         throw BackendError(message: "Demo mode can't create accounts. Pick a sample person instead.")
     }
 
@@ -113,7 +117,14 @@ final class SampleBackend: SaleBackend {
     func loadPeople() async throws -> [AppUser] { people }
 
     func setRole(_ role: Role, uid: String) async throws {
-        if let i = people.firstIndex(where: { $0.uid == uid }) { people[i].role = role }
+        if let i = people.firstIndex(where: { $0.uid == uid }) {
+            people[i].role = role
+            people[i].status = .approved
+        }
+    }
+
+    func rejectAccount(uid: String) async throws {
+        if let i = people.firstIndex(where: { $0.uid == uid }) { people[i].status = .rejected }
     }
 
     func savePanel(_ panel: [String: PanelMember], saleID: String) async throws {

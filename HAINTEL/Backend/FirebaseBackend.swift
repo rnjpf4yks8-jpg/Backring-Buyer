@@ -31,10 +31,11 @@ final class FirebaseBackend: SaleBackend {
         return user
     }
 
-    /// New accounts are always buyers. Staff change the role in Firestore for staff, vets and agents.
-    func createAccount(name: String, email: String, password: String) async throws -> AppUser {
+    /// Saves the role the person picked. Anything but buyer waits for staff to approve it (firestore.rules enforces this).
+    func createAccount(name: String, email: String, password: String, role: Role) async throws -> AppUser {
         let result = try await Auth.auth().createUser(withEmail: email, password: password)
-        let user = AppUser(uid: result.user.uid, name: name, role: .buyer, email: email)
+        let user = AppUser(uid: result.user.uid, name: name, role: role, email: email,
+                           status: role.needsApproval ? .pending : .approved)
         try db.collection("users").document(user.uid).setData(from: user)
         return user
     }
@@ -126,7 +127,12 @@ final class FirebaseBackend: SaleBackend {
     }
 
     func setRole(_ role: Role, uid: String) async throws {
-        try await db.collection("users").document(uid).updateData(["role": role.rawValue])
+        try await db.collection("users").document(uid).updateData(["role": role.rawValue,
+                                                                   "status": AccountStatus.approved.rawValue])
+    }
+
+    func rejectAccount(uid: String) async throws {
+        try await db.collection("users").document(uid).updateData(["status": AccountStatus.rejected.rawValue])
     }
 
     /// Replaces the sale's whole panel, so a cleared slot is removed.

@@ -27,6 +27,9 @@ enum SampleData {
         AppUser(uid: "demo-vet2", name: "Dr. K. Malone", role: .vet),
         AppUser(uid: "demo-bs1", name: "J. Whitaker", role: .agent),
         AppUser(uid: "demo-bs2", name: "M. Castellano", role: .agent),
+        // Signed up and waiting for HAINTEL to approve them (see New accounts as staff).
+        AppUser(uid: "demo-new-vet", name: "Dr. L. Fontaine", role: .vet, email: "l.fontaine@example.com", status: .pending),
+        AppUser(uid: "demo-new-staff", name: "R. Patel", role: .staff, email: "r.patel@example.com", status: .pending),
     ]
 
     private static let sampleVideo = URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/bipbop_4x3_variant.m3u8")
