@@ -99,7 +99,7 @@ private struct EmptySale: View {
                 ProgressView()
             } else {
                 Text("No hips in this sale yet").font(Theme.sans(18, .semibold)).foregroundStyle(Theme.ink)
-                Text(canAdd ? "Add the first hip, or import the catalog spreadsheet." : "HAINTEL staff are loading the catalog.")
+                Text(canAdd ? "Add the first hip, or import the catalog spreadsheet." : "Backring Buyer staff are loading the catalog.")
                     .font(Theme.sans(15)).foregroundStyle(Theme.slate).multilineTextAlignment(.center)
                 if canAdd {
                     Button("Add hip", action: add).buttonStyle(.borderedProminent)
@@ -192,7 +192,7 @@ private struct HipHeader: View {
     }
 }
 
-/// HAINTEL's two grades beside the hip number: "8.0 · 4.5" (C · P), with their ranks in the sale under it.
+/// Backring Buyer's two grades beside the hip number: "8.0 · 4.5" (C · P), with their ranks in the sale under it.
 /// Shows nothing until the hip is graded.
 private struct HipGrades: View {
     @Environment(SaleStore.self) private var store

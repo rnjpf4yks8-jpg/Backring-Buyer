@@ -17,7 +17,7 @@ struct RootView: View {
     }
 }
 
-/// Every sale HAINTEL covers, newest first. Tapping one opens its hips.
+/// Every sale Backring Buyer covers, newest first. Tapping one opens its hips.
 struct SalesIndexView: View {
     @Environment(SaleStore.self) private var store
     @State private var showAccount = false
@@ -31,7 +31,7 @@ struct SalesIndexView: View {
                     if store.isLoading {
                         ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
                     } else {
-                        Text("No sales yet. HAINTEL staff add each sale before its catalog is loaded.")
+                        Text("No sales yet. Backring Buyer staff add each sale before its catalog is loaded.")
                             .font(Theme.sans(15)).foregroundStyle(Theme.slate)
                     }
                 }

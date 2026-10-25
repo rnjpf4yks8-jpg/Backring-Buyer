@@ -54,7 +54,7 @@ private struct OpinionGroupContent: View {
         } else {
             Card {
                 Text("No \(noun) opinions yet").font(Theme.sans(17, .semibold)).foregroundStyle(Theme.ink)
-                Text("They show up here once the sale’s \(noun)s post them and HAINTEL approves them.")
+                Text("They show up here once the sale’s \(noun)s post them and Backring Buyer approves them.")
                     .font(Theme.sans(15)).foregroundStyle(Theme.slate)
             }
         }
@@ -110,7 +110,7 @@ private struct OpinionContent: View {
             Card {
                 Text("Not posted yet").font(Theme.sans(17, .semibold)).foregroundStyle(Theme.ink)
                 Text(store.isAuthor(slot)
-                     ? "Tap Post to add your opinion on this hip. HAINTEL approves it before buyers can see it."
+                     ? "Tap Post to add your opinion on this hip. Backring Buyer approves it before buyers can see it."
                      : "\(member?.name ?? "The \(slot.isVet ? "vet" : "agent")") hasn’t posted an opinion on this hip yet.")
                     .font(Theme.sans(15)).foregroundStyle(Theme.slate)
             }
@@ -133,7 +133,7 @@ private struct OpinionContent: View {
     }
 }
 
-/// Where an opinion stands in HAINTEL's review. Staff approve or return pending opinions here.
+/// Where an opinion stands in Backring Buyer's review. Staff approve or return pending opinions here.
 private struct ReviewBanner: View {
     @Environment(SaleStore.self) private var store
     let status: OpinionStatus
@@ -241,7 +241,7 @@ private struct HipNumberPanel: View {
                 }
                 if let notes = hip.gradeNotes, !notes.isEmpty {
                     Card {
-                        Eyebrow(text: "HAINTEL grades")
+                        Eyebrow(text: "Backring Buyer grades")
                         Text(notes).font(Theme.sans(15)).foregroundStyle(Theme.slate).lineSpacing(3)
                     }
                 }
@@ -310,7 +310,7 @@ private struct VetReportPanel: View {
         if !report.isEntered {
             Card {
                 Text("Not entered yet").font(Theme.sans(17, .semibold)).foregroundStyle(Theme.ink)
-                Text("HAINTEL staff haven’t summarized the repository report for this hip yet.")
+                Text("Backring Buyer staff haven’t summarized the repository report for this hip yet.")
                     .font(Theme.sans(15)).foregroundStyle(Theme.slate)
             }
         } else {
@@ -350,7 +350,7 @@ private struct PedigreePanel: View {
     var body: some View {
         VStack(spacing: 12) {
             if let grade = hip.pedigreeGrade {
-                GradeTile(label: "HAINTEL pedigree grade", grade: grade, outOf: 5,
+                GradeTile(label: "Backring Buyer pedigree grade", grade: grade, outOf: 5,
                           rank: store.pedigreeRank(hip), graded: store.pedigreeGradedCount)
             }
             parent(role: "Sire", name: pedigree.sire, sire: pedigree.sireSire, dam: pedigree.sireDam)
@@ -391,7 +391,7 @@ private struct PedigreePanel: View {
     }
 }
 
-/// One of HAINTEL's grades (C or P) as a navy hero tile: the grade, out of what, and its rank in the sale.
+/// One of Backring Buyer's grades (C or P) as a navy hero tile: the grade, out of what, and its rank in the sale.
 private struct GradeTile: View {
     let label: String
     let grade: Double?
@@ -670,14 +670,14 @@ private struct PhysicalPanel: View {
                             detail: "\(Int((physical.lengthInches * 2.54).rounded())) cm")
                 }
                 Card {
-                    InfoRow(label: "Measured by", value: "\(physical.measuredBy), HAINTEL")
+                    InfoRow(label: "Measured by", value: "\(physical.measuredBy), Backring Buyer")
                     InfoRow(label: "Date", value: physical.date)
                 }
             }
         } else {
             Card {
                 Text("Not measured yet").font(Theme.sans(17, .semibold))
-                Text("A HAINTEL field team member hasn’t measured this hip yet.")
+                Text("A Backring Buyer field team member hasn’t measured this hip yet.")
                     .font(Theme.sans(15)).foregroundStyle(Theme.slate)
             }
         }

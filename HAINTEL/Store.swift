@@ -268,7 +268,7 @@ final class SaleStore {
             return (isStaff ? "Needs approval" : "Waiting for approval", false)
         }
         guard hip.opinionsIn.contains(slot) else {
-            if isAuthor(slot), opinion(slot, hip: hip)?.reviewStatus == .rejected { return ("Returned by HAINTEL", false) }
+            if isAuthor(slot), opinion(slot, hip: hip)?.reviewStatus == .rejected { return ("Returned by Backring Buyer", false) }
             return ("Not posted yet", false)
         }
         guard canRead(slot, hip: hip) else { return ("Unlock \(price(slot))", true) }

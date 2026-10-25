@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Sale pictures and walk videos: anyone can view, only HAINTEL staff upload.
+// Sale pictures and walk videos: anyone can view, only Backring Buyer staff upload.
 service firebase.storage {
   match /b/{bucket}/o {
     match /sales/{saleId}/hips/{hip}/{file} {

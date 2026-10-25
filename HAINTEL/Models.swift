@@ -43,7 +43,7 @@ enum ExamBasis: String, Codable, Hashable, CaseIterable {
     }
 }
 
-/// HP: horse physical, measured in the field by HAINTEL staff.
+/// HP: horse physical, measured in the field by Backring Buyer staff.
 struct HorsePhysical: Codable, Hashable {
     var heightInches: Double
     var lengthInches: Double
@@ -68,7 +68,7 @@ struct AuctionRecord: Codable, Hashable, Identifiable {
     enum CodingKeys: String, CodingKey { case sale, date, hip, result }
 }
 
-/// One catalog entry. Entered by HAINTEL staff.
+/// One catalog entry. Entered by Backring Buyer staff.
 struct Hip: Codable, Identifiable, Hashable {
     var id: Int { number }
     var number: Int
@@ -91,11 +91,11 @@ struct Hip: Codable, Identifiable, Hashable {
     var physical: HorsePhysical?
     /// Which paid opinions have been posted. Lets buyers see what's for sale without reading the opinion.
     var opinionsIn: [OpinionSlot] = []
-    /// Opinions posted but not yet approved by HAINTEL. Buyers don't see these.
+    /// Opinions posted but not yet approved by Backring Buyer. Buyers don't see these.
     var opinionsPending: [OpinionSlot]? = nil
-    /// C: HAINTEL's conformation grade, 1–10 in half points. Nil until graded.
+    /// C: Backring Buyer's conformation grade, 1–10 in half points. Nil until graded.
     var conformationGrade: Double? = nil
-    /// P: HAINTEL's pedigree grade, 1–5 in half points. Nil until graded.
+    /// P: Backring Buyer's pedigree grade, 1–5 in half points. Nil until graded.
     var pedigreeGrade: Double? = nil
     /// One line on why the hip got its grades.
     var gradeNotes: String? = nil
@@ -154,7 +154,7 @@ struct Opinion: Codable, Hashable {
     var rank: Int?
     var outOf: Int?
     var score: Double?
-    /// HAINTEL approves each opinion before buyers can see it. Missing means approved (posted before reviews began).
+    /// Backring Buyer approves each opinion before buyers can see it. Missing means approved (posted before reviews began).
     var status: OpinionStatus?
 
     var reviewStatus: OpinionStatus { status ?? .approved }
@@ -165,9 +165,9 @@ enum OpinionStatus: String, Codable, Hashable {
 
     var label: String {
         switch self {
-        case .pending: "Waiting for HAINTEL approval"
+        case .pending: "Waiting for Backring Buyer approval"
         case .approved: "Approved"
-        case .rejected: "Returned by HAINTEL"
+        case .rejected: "Returned by Backring Buyer"
         }
     }
 }
@@ -209,7 +209,7 @@ enum Role: String, Codable, Hashable {
     var label: String {
         switch self {
         case .buyer: "Buyer"
-        case .staff: "HAINTEL staff"
+        case .staff: "Backring Buyer staff"
         case .agent: "Bloodstock agent"
         case .vet: "Vet"
         }

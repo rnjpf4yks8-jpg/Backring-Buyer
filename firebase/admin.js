@@ -1,4 +1,4 @@
-// HAINTEL admin tasks for staff. Needs a Firebase service account key:
+// Backring Buyer admin tasks for staff. Needs a Firebase service account key:
 //   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 //
 //   node admin.js create-sale <saleId> "<name>" "<company>" "<date>"
@@ -65,7 +65,7 @@ async function importHips(saleId, file) {
     for (const key of ['pedigreeURL', 'walkVideoURL', 'photoURL', 'walkVideoLength']) {
       if (get(key)) catalog[key] = get(key);
     }
-    // Optional HAINTEL grades: C (conformation) 1-10 and P (pedigree) 1-5, in half points.
+    // Optional Backring Buyer grades: C (conformation) 1-10 and P (pedigree) 1-5, in half points.
     // A blank cell leaves the hip's current grade alone.
     for (const [column, key, max] of [['conformation_grade', 'conformationGrade', 10], ['pedigree_grade', 'pedigreeGrade', 5]]) {
       const text = get(column);

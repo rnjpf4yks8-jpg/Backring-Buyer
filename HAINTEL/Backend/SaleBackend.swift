@@ -18,7 +18,7 @@ protocol SaleBackend {
     func signOut() throws
 
     func loadSales() async throws -> [Sale]
-    /// The sale HAINTEL is featuring now (config/app.currentSale), if one is set.
+    /// The sale Backring Buyer is featuring now (config/app.currentSale), if one is set.
     func featuredSaleID() async throws -> String?
     func hipCount(saleID: String) async throws -> Int
     func loadHips(saleID: String) async throws -> [Hip]
@@ -27,7 +27,7 @@ protocol SaleBackend {
     func upload(_ data: Data, kind: MediaKind, saleID: String, hip: Int) async throws -> URL
 
     func loadOpinion(saleID: String, hip: Int, slot: OpinionSlot) async throws -> Opinion?
-    /// The author posts or edits an opinion. It waits for HAINTEL approval before buyers see it.
+    /// The author posts or edits an opinion. It waits for Backring Buyer approval before buyers see it.
     func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot) async throws
     /// Staff approve (buyers can see it) or return (hidden) a posted opinion.
     func review(approve: Bool, saleID: String, hip: Int, slot: OpinionSlot) async throws

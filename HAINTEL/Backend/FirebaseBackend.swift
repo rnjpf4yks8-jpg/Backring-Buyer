@@ -26,7 +26,7 @@ final class FirebaseBackend: SaleBackend {
     func signIn(email: String, password: String) async throws -> AppUser {
         let result = try await Auth.auth().signIn(withEmail: email, password: password)
         guard let user = try await loadUser(result.user.uid) else {
-            throw BackendError(message: "This account has no HAINTEL profile yet. Ask HAINTEL staff to set it up.")
+            throw BackendError(message: "This account has no Backring Buyer profile yet. Ask Backring Buyer staff to set it up.")
         }
         return user
     }

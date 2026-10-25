@@ -34,7 +34,7 @@ website. Re-importing updates catalog fields only; what staff entered in the app
 Optional columns `pedigreeURL`, `walkVideoURL`, `photoURL` and `walkVideoLength` link each hip's catalog
 page, walk video and sale picture on the sale company's site.
 Optional columns `conformation_grade` (C, 1–10) and `pedigree_grade` (P, 1–5), in half points like 8.0 or
-4.5, are HAINTEL's grades; `grade_notes` is a one-line reason. A blank cell keeps the hip's current grade, and
+4.5, are Backring Buyer's grades; `grade_notes` is a one-line reason. A blank cell keeps the hip's current grade, and
 a value out of range is skipped with a warning. The app shows the grades beside the hip number and ranks
 each hip by them within the sale. Staff can also enter grades in the app (Hip Number → Edit).
 Staff can also add and edit hips one at a time in the app (the + button).
@@ -53,7 +53,7 @@ menu to pick whose opinion to read. Each vet and agent sees a **Post** button on
 posts only their own opinion. Staff see **Edit** on every other button.
 
 ## Who can see what
-- Catalog data (hip info, HAINTEL grades, pedigree, vet report summary, history, reserve, video, picture, HP): everyone.
+- Catalog data (hip info, Backring Buyer grades, pedigree, vet report summary, history, reserve, video, picture, HP): everyone.
 - Vet 1, Vet 2 (under Vet Opinions) and BS1, BS2 (under Bloodstock Opinions): the author, staff, and buyers
   who paid ($25 vet, $50 agent). Each opinion is bought on its own.
 

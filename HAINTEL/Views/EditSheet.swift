@@ -106,7 +106,7 @@ struct EditSheet: View {
                 TextField("Why (one line)", text: Binding(
                     get: { draft.gradeNotes ?? "" }, set: { draft.gradeNotes = $0 }))
             } header: {
-                Text("HAINTEL grades")
+                Text("Backring Buyer grades")
             } footer: {
                 Text("Half points, like 8.0 or 4.5. Leave blank if not graded yet. Ranks in the sale are worked out from these.")
             }
