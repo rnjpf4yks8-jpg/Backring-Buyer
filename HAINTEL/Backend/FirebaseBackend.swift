@@ -50,12 +50,22 @@ final class FirebaseBackend: SaleBackend {
 
     // MARK: Sale and hips
 
-    func loadSale() async throws -> Sale {
-        let config = try await db.collection("config").document("app").getDocument()
-        guard let saleID = config.get("currentSale") as? String else {
-            throw BackendError(message: "No current sale is set. Set config/app.currentSale in Firestore.")
+    func loadSales() async throws -> [Sale] {
+        let snap = try await db.collection("sales").getDocuments()
+        return try snap.documents.map { doc in
+            var sale = try doc.data(as: Sale.self)
+            sale.id = doc.documentID
+            return sale
         }
-        return try await db.collection("sales").document(saleID).getDocument(as: Sale.self)
+    }
+
+    func featuredSaleID() async throws -> String? {
+        try await db.collection("config").document("app").getDocument().get("currentSale") as? String
+    }
+
+    func hipCount(saleID: String) async throws -> Int {
+        let result = try await hipsRef(saleID).count.getAggregation(source: .server)
+        return result.count.intValue
     }
 
     func loadHips(saleID: String) async throws -> [Hip] {

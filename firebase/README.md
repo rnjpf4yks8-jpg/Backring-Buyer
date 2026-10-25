@@ -26,6 +26,9 @@ Until these steps are done the app runs in demo mode on sample data.
 node admin.js create-sale ft-oct-2026 "October Yearling Sale" "Fasig-Tipton" "Oct 27, 2026"
 node admin.js import-hips ft-oct-2026 hips.csv
 ```
+Every sale appears in the app's sales list, newest first. The sale created last is marked NOW
+(`config/app.currentSale`).
+
 `hips.csv` follows `hips-template.csv`: one row per hip with the catalog details from the sale company's
 website. Re-importing updates catalog fields only; what staff entered in the app is kept.
 Optional columns `pedigreeURL`, `walkVideoURL`, `photoURL` and `walkVideoLength` link each hip's catalog

@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// One button's content on its own pushed screen. Back returns to the hip screen;
+/// One button's content on its own pushed screen. Back returns to the sale's hip screen;
 /// the bar at the bottom moves to the previous or next button's screen.
 struct FieldScreen: View {
     @Environment(SaleStore.self) private var store
     let field: HipField
-    @Binding var path: [HipField]
+    @Binding var path: [Route]
     @State private var editing = false
 
     var body: some View {
@@ -77,7 +77,7 @@ struct FieldScreen: View {
     private func pagerButton(_ target: HipField?, leading: Bool) -> some View {
         Button {
             guard let target, !path.isEmpty else { return }
-            path[path.count - 1] = target
+            path[path.count - 1] = .field(target)
         } label: {
             HStack(spacing: 6) {
                 if leading { Image(systemName: "chevron.left") }

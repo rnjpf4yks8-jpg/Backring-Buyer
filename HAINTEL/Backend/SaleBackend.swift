@@ -17,7 +17,10 @@ protocol SaleBackend {
     func createAccount(name: String, email: String, password: String) async throws -> AppUser
     func signOut() throws
 
-    func loadSale() async throws -> Sale
+    func loadSales() async throws -> [Sale]
+    /// The sale HAINTEL is featuring now (config/app.currentSale), if one is set.
+    func featuredSaleID() async throws -> String?
+    func hipCount(saleID: String) async throws -> Int
     func loadHips(saleID: String) async throws -> [Hip]
     func save(hip: Hip, saleID: String) async throws
     func deleteHip(number: Int, saleID: String) async throws
@@ -38,7 +41,7 @@ struct BackendError: LocalizedError {
 /// In-memory backend with sample data. Nothing is saved between launches.
 final class SampleBackend: SaleBackend {
     let isDemo = true
-    private var hips = SampleData.hips
+    private var hipsBySale = [SampleData.sale.id: SampleData.hips]
     private var opinions = SampleData.opinions
     private var purchases: [String: Set<String>] = [:]
 
@@ -54,16 +57,22 @@ final class SampleBackend: SaleBackend {
 
     func signOut() throws {}
 
-    func loadSale() async throws -> Sale { SampleData.sale }
+    func loadSales() async throws -> [Sale] { SampleData.sales }
 
-    func loadHips(saleID: String) async throws -> [Hip] { hips }
+    func featuredSaleID() async throws -> String? { SampleData.sale.id }
+
+    func hipCount(saleID: String) async throws -> Int { hipsBySale[saleID]?.count ?? 0 }
+
+    func loadHips(saleID: String) async throws -> [Hip] { hipsBySale[saleID] ?? [] }
 
     func save(hip: Hip, saleID: String) async throws {
+        var hips = hipsBySale[saleID] ?? []
         if let i = hips.firstIndex(where: { $0.number == hip.number }) { hips[i] = hip } else { hips.append(hip) }
+        hipsBySale[saleID] = hips
     }
 
     func deleteHip(number: Int, saleID: String) async throws {
-        hips.removeAll { $0.number == number }
+        hipsBySale[saleID]?.removeAll { $0.number == number }
     }
 
     func upload(_ data: Data, kind: MediaKind, saleID: String, hip: Int) async throws -> URL {
@@ -78,8 +87,9 @@ final class SampleBackend: SaleBackend {
 
     func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot) async throws {
         opinions["\(hip)_\(slot.rawValue)"] = opinion
-        if let i = hips.firstIndex(where: { $0.number == hip }), !hips[i].opinionsIn.contains(slot) {
-            hips[i].opinionsIn.append(slot)
+        if let i = hipsBySale[saleID]?.firstIndex(where: { $0.number == hip }),
+           hipsBySale[saleID]?[i].opinionsIn.contains(slot) == false {
+            hipsBySale[saleID]?[i].opinionsIn.append(slot)
         }
     }
 

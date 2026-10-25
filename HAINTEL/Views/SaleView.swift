@@ -1,64 +1,76 @@
 import SwiftUI
 
-/// The hip screen: a short header and all 12 buttons, sized to fit one iPhone screen without scrolling.
-struct HomeView: View {
+/// One sale's hip screen: a short header and all 12 buttons, sized to fit one iPhone screen without scrolling.
+struct SaleView: View {
     @Environment(SaleStore.self) private var store
-    @State private var path: [HipField] = []
-    @State private var showAccount = false
+    let saleID: String
+    @Binding var path: [Route]
     @State private var addingHip = false
 
     var body: some View {
-        NavigationStack(path: $path) {
-            VStack(spacing: 0) {
-                if let hip = store.currentHip {
-                    HipHeader(hip: hip)
-                    FieldGrid(hip: hip) { path.append($0) }
-                        .padding(16)
-                } else {
-                    EmptySale(isLoading: store.isLoading, canAdd: store.isStaff) { addingHip = true }
-                }
-            }
-            .background(Theme.page)
-            .overlay(alignment: .bottom) { ErrorBanner() }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { showAccount = true } label: {
-                        Image(systemName: store.user == nil ? "person.crop.circle" : "person.crop.circle.fill")
-                            .foregroundStyle(.white)
-                    }
-                    .accessibilityLabel("Account")
-                }
-                ToolbarItem(placement: .principal) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "chart.line.uptrend.xyaxis")
-                            .foregroundStyle(Theme.amber)
-                        Text("HAINTEL")
-                            .font(Theme.sans(17, .bold))
-                            .tracking(1)
-                            .foregroundStyle(.white)
-                    }
-                }
-                if store.isStaff {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button { addingHip = true } label: {
-                            Image(systemName: "plus").foregroundStyle(.white)
-                        }
-                        .accessibilityLabel("Add hip")
-                    }
-                }
-            }
-            .toolbarBackground(Theme.navy, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .navigationDestination(for: HipField.self) { field in
-                FieldScreen(field: field, path: $path)
-            }
-            .sheet(isPresented: $showAccount) { AccountView() }
-            .sheet(isPresented: $addingHip) {
-                EditSheet(field: .hipNumber, hip: Hip(number: (store.hips.last?.number ?? 0) + 1), isNew: true)
+        VStack(spacing: 0) {
+            if store.sale.id == saleID, let hip = store.currentHip {
+                HipHeader(hip: hip)
+                FieldGrid(hip: hip) { path.append(.field($0)) }
+                    .padding(16)
+            } else {
+                EmptySale(isLoading: store.isLoading || store.sale.id != saleID, canAdd: store.isStaff) { addingHip = true }
             }
         }
+        .background(Theme.page)
+        .overlay(alignment: .bottom) { ErrorBanner() }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) { SaleSwitcher(path: $path) }
+            if store.isStaff {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { addingHip = true } label: {
+                        Image(systemName: "plus").foregroundStyle(.white)
+                    }
+                    .accessibilityLabel("Add hip")
+                }
+            }
+        }
+        .toolbarBackground(Theme.navy, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .task(id: saleID) { await store.open(saleID: saleID) }
+        .sheet(isPresented: $addingHip) {
+            EditSheet(field: .hipNumber, hip: Hip(number: (store.hips.last?.number ?? 0) + 1), isNew: true)
+        }
+    }
+}
+
+/// The title in a sale's bar. Tapping it lists every sale, so you can jump straight to another one.
+private struct SaleSwitcher: View {
+    @Environment(SaleStore.self) private var store
+    @Binding var path: [Route]
+
+    var body: some View {
+        Menu {
+            ForEach(store.sales, id: \.id) { sale in
+                Button {
+                    path = [.sale(sale.id)]
+                } label: {
+                    if sale.id == store.sale.id {
+                        Label("\(sale.name) · \(sale.date)", systemImage: "checkmark")
+                    } else {
+                        Text("\(sale.name) · \(sale.date)")
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(store.sale.name)
+                    .font(Theme.sans(16, .bold))
+                    .lineLimit(1)
+                    .foregroundStyle(.white)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Theme.amber)
+            }
+        }
+        .accessibilityLabel("Switch sale, current: \(store.sale.name)")
     }
 }
 
@@ -241,11 +253,4 @@ private struct PressScale: ButtonStyle {
             .opacity(configuration.isPressed ? 0.85 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
-}
-
-#Preview {
-    let store = SaleStore(backend: SampleBackend())
-    return HomeView()
-        .environment(store)
-        .task { await store.start() }
 }

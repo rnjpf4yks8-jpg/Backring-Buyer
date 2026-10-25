@@ -25,7 +25,7 @@ async function createSale(saleId, name, company, date) {
     vetPrice: 25, agentPrice: 50,
   }, { merge: true });
   await db.collection('config').doc('app').set({ currentSale: saleId }, { merge: true });
-  console.log(`Sale ${saleId} saved and set as the current sale in the app.`);
+  console.log(`Sale ${saleId} saved. It shows in the app's sales list, marked NOW as the featured sale.`);
 }
 
 async function importHips(saleId, file) {

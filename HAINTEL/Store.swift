@@ -7,6 +7,12 @@ import Observation
 @Observable
 final class SaleStore {
     let backend: SaleBackend
+    /// Every sale, newest first.
+    var sales: [Sale] = []
+    var featuredSaleID: String?
+    /// Hips per sale, for the sales list. Filled in as counts arrive.
+    var hipCounts: [String: Int] = [:]
+    /// The sale that's open. Hips and opinions belong to it.
     var sale = SampleData.sale
     var hips: [Hip] = []
     var currentHipNumber = 0
@@ -37,17 +43,57 @@ final class SaleStore {
         defer { isLoading = false }
         await attempt {
             user = try await backend.currentUser()
-            try await reloadSale()
+            try await reloadSales()
+            try await reloadPurchases()
+        }
+        await loadHipCounts()
+    }
+
+    func reloadSales() async throws {
+        featuredSaleID = try await backend.featuredSaleID()
+        sales = try await backend.loadSales().sorted {
+            ($0.day ?? .distantPast, $0.name) > ($1.day ?? .distantPast, $1.name)
         }
     }
 
-    func reloadSale() async throws {
-        sale = try await backend.loadSale()
-        hips = try await backend.loadHips(saleID: sale.id).sorted { $0.number < $1.number }
-        if hip(currentHipNumber) == nil { currentHipNumber = hips.first?.number ?? 0 }
+    /// Purchases cover every sale, so they reload with the account, not with the sale.
+    private func reloadPurchases() async throws {
         purchases = []
         if let user { purchases = try await backend.loadPurchases(uid: user.uid) }
         opinions = [:]
+    }
+
+    private func loadHipCounts() async {
+        for sale in sales where hipCounts[sale.id] == nil {
+            if let count = try? await backend.hipCount(saleID: sale.id) { hipCounts[sale.id] = count }
+        }
+    }
+
+    /// Opens a sale from the sales list. Its hips load fresh each time it's opened.
+    func open(saleID: String) async {
+        guard let picked = sales.first(where: { $0.id == saleID }) else { return }
+        if picked.id != sale.id {
+            sale = picked
+            hips = []
+            currentHipNumber = 0
+            opinions = [:]
+        }
+        isLoading = true
+        defer { isLoading = false }
+        await attempt {
+            let loaded = try await backend.loadHips(saleID: picked.id).sorted { $0.number < $1.number }
+            guard sale.id == picked.id else { return }  // Another sale was opened meanwhile.
+            hips = loaded
+            hipCounts[picked.id] = loaded.count
+            if hip(currentHipNumber) == nil { currentHipNumber = hips.first?.number ?? 0 }
+        }
+    }
+
+    /// Reloads the sales list (pull to refresh).
+    func refreshSales() async {
+        await attempt { try await reloadSales() }
+        hipCounts = [:]
+        await loadHipCounts()
     }
 
     // MARK: Account
@@ -55,14 +101,14 @@ final class SaleStore {
     func signIn(email: String, password: String) async {
         await attempt {
             user = try await backend.signIn(email: email, password: password)
-            try await reloadSale()
+            try await reloadPurchases()
         }
     }
 
     func createAccount(name: String, email: String, password: String) async {
         await attempt {
             user = try await backend.createAccount(name: name, email: email, password: password)
-            try await reloadSale()
+            try await reloadPurchases()
         }
     }
 
@@ -70,7 +116,7 @@ final class SaleStore {
     func signInDemo(as person: AppUser?) async {
         await attempt {
             user = person
-            try await reloadSale()
+            try await reloadPurchases()
         }
     }
 
@@ -78,7 +124,7 @@ final class SaleStore {
         await attempt {
             try backend.signOut()
             user = nil
-            try await reloadSale()
+            try await reloadPurchases()
         }
     }
 
@@ -154,6 +200,7 @@ final class SaleStore {
             } else {
                 hips.append(hip)
                 hips.sort { $0.number < $1.number }
+                hipCounts[sale.id] = hips.count
             }
             currentHipNumber = hip.number
         }

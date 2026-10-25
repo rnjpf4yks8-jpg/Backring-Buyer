@@ -144,6 +144,16 @@ struct Sale: Codable, Hashable {
 
     func member(_ slot: OpinionSlot) -> PanelMember? { panel[slot.rawValue] }
     func price(_ slot: OpinionSlot) -> Int { slot.isVet ? vetPrice : agentPrice }
+
+    /// The sale date as a Date, for ordering the sales list. Dates are entered like "Oct 27, 2026".
+    var day: Date? { Sale.dateFormat.date(from: date) }
+
+    private static let dateFormat: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "MMM d, yyyy"
+        return f
+    }()
 }
 
 enum Role: String, Codable, Hashable {
@@ -163,6 +173,12 @@ struct AppUser: Codable, Hashable {
     var uid: String
     var name: String
     var role: Role
+}
+
+/// Screens pushed on the app's navigation stack: a sale's hip screen, then one of its 12 buttons.
+enum Route: Hashable {
+    case sale(String)
+    case field(HipField)
 }
 
 /// The 12 buttons on the hip screen, in the order Sandeep listed them.

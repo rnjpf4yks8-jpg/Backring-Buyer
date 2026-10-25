@@ -2,6 +2,10 @@ import Foundation
 
 // Demo data used until Firebase is set up. Every name and number here is made up.
 enum SampleData {
+    /// A second sale with no hips yet, so the sales list has something to switch between.
+    static let sales = [sale, Sale(id: "demo-breeding-stock", name: "November Breeding Stock Sale",
+                                   company: "Keeneland", date: "Nov 9, 2026")]
+
     static let sale = Sale(
         id: "demo-yearling-sale",
         name: "October Yearling Sale",

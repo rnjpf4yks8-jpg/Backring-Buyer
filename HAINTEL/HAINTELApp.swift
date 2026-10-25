@@ -9,7 +9,7 @@ struct HAINTELApp: App {
 
     var body: some Scene {
         WindowGroup {
-            HomeView()
+            RootView()
                 .environment(store)
                 .tint(Theme.blue)
                 .preferredColorScheme(.light)
