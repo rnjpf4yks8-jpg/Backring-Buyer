@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One sale's hip screen: a short header and all 12 buttons, sized to fit one iPhone screen without scrolling.
+/// One sale's hip screen: a short header and all 10 buttons, sized to fit one iPhone screen without scrolling.
 struct SaleView: View {
     @Environment(SaleStore.self) private var store
     let saleID: String
@@ -142,20 +142,24 @@ private struct HipHeader: View {
             Eyebrow(text: "\(store.sale.company) · \(store.sale.name)" + (hip.session.isEmpty ? "" : " · \(hip.session)"), color: Theme.amber)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-            HStack(alignment: .center) {
+            HStack(alignment: .center, spacing: 8) {
                 Button { goTo = ""; showGoTo = true } label: {
                     HStack(spacing: 8) {
                         Text("Hip \(hip.number)")
                             .font(Theme.mono(34, .bold))
                             .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                             .contentTransition(.numericText())
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(Theme.amber)
                     }
                 }
+                .layoutPriority(1)
                 .accessibilityLabel("Hip \(hip.number). Go to another hip")
-                Spacer()
+                HipGrades(hip: hip)
+                Spacer(minLength: 0)
                 HipStepButton(symbol: "chevron.left", enabled: store.hasPreviousHip) { store.stepHip(-1) }
                     .accessibilityLabel("Previous hip")
                 HipStepButton(symbol: "chevron.right", enabled: store.hasNextHip) { store.stepHip(1) }
@@ -188,6 +192,50 @@ private struct HipHeader: View {
     }
 }
 
+/// HAINTEL's two grades beside the hip number: "8.0 · 4.5" (C · P), with their ranks in the sale under it.
+/// Shows nothing until the hip is graded.
+private struct HipGrades: View {
+    @Environment(SaleStore.self) private var store
+    let hip: Hip
+
+    var body: some View {
+        if hip.isGraded {
+            let cRank = store.conformationRank(hip)
+            let pRank = store.pedigreeRank(hip)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(text(hip.conformationGrade)) · \(text(hip.pedigreeGrade))")
+                    .font(Theme.mono(15, .bold))
+                    .foregroundStyle(Theme.amber)
+                Text(ranks(c: cRank, p: pRank))
+                    .font(Theme.sans(11, .medium))
+                    .foregroundStyle(Theme.muted)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(spoken(cRank: cRank, pRank: pRank))
+        }
+    }
+
+    private func text(_ grade: Double?) -> String {
+        grade.map(Hip.gradeText) ?? "–"
+    }
+
+    private func ranks(c: Int?, p: Int?) -> String {
+        "C \(c.map { "#\($0)" } ?? "–") · P \(p.map { "#\($0)" } ?? "–")"
+    }
+
+    private func spoken(cRank: Int?, pRank: Int?) -> String {
+        let conformation = hip.conformationGrade.map {
+            "Conformation \(Hip.gradeText($0)) of 10, rank \(cRank ?? 0) of \(store.conformationGradedCount)"
+        } ?? "Conformation not graded"
+        let pedigree = hip.pedigreeGrade.map {
+            "pedigree \(Hip.gradeText($0)) of 5, rank \(pRank ?? 0) of \(store.pedigreeGradedCount)"
+        } ?? "pedigree not graded"
+        return "\(conformation); \(pedigree)"
+    }
+}
+
 private struct HipStepButton: View {
     let symbol: String
     let enabled: Bool
@@ -205,14 +253,17 @@ private struct HipStepButton: View {
     }
 }
 
-/// 3 columns × 4 rows. Rows stretch to share the space left under the header, so nothing scrolls.
+/// 2 columns × 5 rows. Rows stretch to share the space left under the header, so nothing scrolls.
 private struct FieldGrid: View {
     @Environment(SaleStore.self) private var store
     let hip: Hip
     let open: (HipField) -> Void
 
-    private let rows: [[HipField]] = stride(from: 0, to: HipField.allCases.count, by: 3).map {
-        Array(HipField.allCases[$0..<$0 + 3])
+    private static let columns = 2
+
+    // min() keeps the last row safe if the number of buttons is ever odd.
+    private let rows: [[HipField]] = stride(from: 0, to: HipField.allCases.count, by: FieldGrid.columns).map {
+        Array(HipField.allCases[$0..<min($0 + FieldGrid.columns, HipField.allCases.count)])
     }
 
     var body: some View {

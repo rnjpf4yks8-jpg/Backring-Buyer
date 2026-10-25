@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The app's one navigation stack: the sales list, then a sale's hip screen, then one of its 12 buttons.
+/// The app's one navigation stack: the sales list, then a sale's hip screen, then one of its 10 buttons.
 struct RootView: View {
     @State private var path: [Route] = []
 

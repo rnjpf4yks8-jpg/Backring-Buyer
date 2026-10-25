@@ -10,12 +10,9 @@ struct FieldContent: View {
         switch field {
         case .hipNumber: HipNumberPanel(hip: hip)
         case .vetReport: VetReportPanel(report: hip.vetReport)
-        case .pedigree: PedigreePanel(pedigree: hip.pedigree, catalogPage: hip.pedigreeURL)
+        case .pedigree: PedigreePanel(hip: hip)
         case .auctionHistory: AuctionHistoryPanel(records: hip.auctionHistory)
-        case .vet1: OpinionContent(slot: .vet1, hip: hip)
-        case .vet2: OpinionContent(slot: .vet2, hip: hip)
-        case .bs1Rank: OpinionContent(slot: .bs1, hip: hip)
-        case .bs2Rank: OpinionContent(slot: .bs2, hip: hip)
+        case .vetOpinions, .bloodstockOpinions: OpinionGroupContent(field: field, hip: hip)
         case .reserve: ReservePanel(hip: hip)
         case .saleWalkVideo: VideoPanel(url: hip.walkVideoURL, length: hip.walkVideoLength)
         case .salePicture: PhotoPanel(url: hip.photoURL)
@@ -24,7 +21,75 @@ struct FieldContent: View {
     }
 }
 
-/// Vet 1, Vet 2, BS1 and BS2: not posted yet, locked behind a purchase, or the opinion itself.
+/// Vet Opinions (Vet 1, Vet 2) and Bloodstock Opinions (BS1, BS2): a menu of the panel members with an
+/// opinion on this hip, then the picked one's opinion, its paywall, or where it stands in review.
+private struct OpinionGroupContent: View {
+    @Environment(SaleStore.self) private var store
+    let field: HipField
+    let hip: Hip
+
+    var body: some View {
+        let slots = store.availableSlots(field, hip: hip)
+        if let selected = store.selectedSlot(field, hip: hip) {
+            VStack(alignment: .leading, spacing: 12) {
+                Menu {
+                    ForEach(slots, id: \.self) { slot in
+                        Button {
+                            store.selectedSlots[field] = slot
+                        } label: {
+                            if slot == selected {
+                                Label(store.slotMenuTitle(slot, hip: hip), systemImage: "checkmark")
+                            } else {
+                                Text(store.slotMenuTitle(slot, hip: hip))
+                            }
+                        }
+                    }
+                } label: {
+                    picker(selected, count: slots.count)
+                }
+                .accessibilityLabel("Showing \(store.slotMenuTitle(selected, hip: hip)). Pick another \(noun)")
+                OpinionContent(slot: selected, hip: hip)
+                    .id(selected)
+            }
+        } else {
+            Card {
+                Text("No \(noun) opinions yet").font(Theme.sans(17, .semibold)).foregroundStyle(Theme.ink)
+                Text("They show up here once the sale’s \(noun)s post them and HAINTEL approves them.")
+                    .font(Theme.sans(15)).foregroundStyle(Theme.slate)
+            }
+        }
+    }
+
+    private var noun: String { field == .vetOpinions ? "vet" : "bloodstock agent" }
+
+    private func picker(_ slot: OpinionSlot, count: Int) -> some View {
+        let status = store.slotStatus(slot, hip: hip)
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Eyebrow(text: count == 1 ? "1 \(noun) opinion" : "\(count) \(noun) opinions")
+                Text(store.sale.member(slot)?.name ?? slot.title)
+                    .font(Theme.sans(17, .semibold))
+                    .foregroundStyle(Theme.ink)
+                    .lineLimit(1)
+                Text(status.summary)
+                    .font(Theme.sans(14, status.locked ? .semibold : .regular))
+                    .foregroundStyle(status.locked ? Theme.orange : Theme.slate)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.blue)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.line))
+        .contentShape(Rectangle())
+    }
+}
+
+/// One of Vet 1, Vet 2, BS1 and BS2: not posted yet, locked behind a purchase, or the opinion itself.
 private struct OpinionContent: View {
     @Environment(SaleStore.self) private var store
     let slot: OpinionSlot
@@ -167,6 +232,21 @@ private struct HipNumberPanel: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.navy, in: RoundedRectangle(cornerRadius: 12))
 
+            if hip.isGraded {
+                HStack(spacing: 12) {
+                    GradeTile(label: "Conformation", grade: hip.conformationGrade, outOf: 10,
+                              rank: store.conformationRank(hip), graded: store.conformationGradedCount)
+                    GradeTile(label: "Pedigree", grade: hip.pedigreeGrade, outOf: 5,
+                              rank: store.pedigreeRank(hip), graded: store.pedigreeGradedCount)
+                }
+                if let notes = hip.gradeNotes, !notes.isEmpty {
+                    Card {
+                        Eyebrow(text: "HAINTEL grades")
+                        Text(notes).font(Theme.sans(15)).foregroundStyle(Theme.slate).lineSpacing(3)
+                    }
+                }
+            }
+
             Card {
                 InfoRow(label: "Foaled", value: hip.foaled)
                 InfoRow(label: "Session", value: hip.session)
@@ -261,11 +341,18 @@ private struct VetReportPanel: View {
 // MARK: - 03 Pedigree
 
 private struct PedigreePanel: View {
-    let pedigree: Pedigree
-    let catalogPage: URL?
+    @Environment(SaleStore.self) private var store
+    let hip: Hip
+
+    private var pedigree: Pedigree { hip.pedigree }
+    private var catalogPage: URL? { hip.pedigreeURL }
 
     var body: some View {
         VStack(spacing: 12) {
+            if let grade = hip.pedigreeGrade {
+                GradeTile(label: "HAINTEL pedigree grade", grade: grade, outOf: 5,
+                          rank: store.pedigreeRank(hip), graded: store.pedigreeGradedCount)
+            }
             parent(role: "Sire", name: pedigree.sire, sire: pedigree.sireSire, dam: pedigree.sireDam)
             parent(role: "Dam", name: pedigree.dam, sire: pedigree.damSire, dam: pedigree.damDam)
             if let catalogPage {
@@ -304,6 +391,34 @@ private struct PedigreePanel: View {
     }
 }
 
+/// One of HAINTEL's grades (C or P) as a navy hero tile: the grade, out of what, and its rank in the sale.
+private struct GradeTile: View {
+    let label: String
+    let grade: Double?
+    let outOf: Int
+    let rank: Int?
+    let graded: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Eyebrow(text: label, color: Theme.amber)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(grade.map(Hip.gradeText) ?? "–").font(Theme.mono(28, .bold)).foregroundStyle(.white)
+                Text("/ \(outOf)").font(Theme.sans(15)).foregroundStyle(Theme.mist)
+            }
+            Text(rank.map { "Rank \($0) of \(graded)" } ?? "Not graded")
+                .font(Theme.sans(13)).foregroundStyle(Theme.muted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.navy, in: RoundedRectangle(cornerRadius: 12))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(grade.map { "\(label) \(Hip.gradeText($0)) of \(outOf), rank \(rank ?? 0) of \(graded)" } ?? "\(label) not graded")
+    }
+}
+
 // MARK: - 04 Auction History
 
 private struct AuctionHistoryPanel: View {
@@ -334,7 +449,7 @@ private struct AuctionHistoryPanel: View {
     }
 }
 
-// MARK: - 05/06 Vet 1, Vet 2
+// MARK: - 05 Vet Opinions (Vet 1, Vet 2)
 
 private struct VetOpinionPanel: View {
     let opinion: Opinion
@@ -358,7 +473,7 @@ private struct VetOpinionPanel: View {
     }
 }
 
-// MARK: - 07/08 BS1 Rank, BS2 Rank
+// MARK: - 06 Bloodstock Opinions (BS1, BS2)
 
 private struct AgentOpinionPanel: View {
     let opinion: Opinion
@@ -400,7 +515,7 @@ private struct AgentOpinionPanel: View {
     }
 }
 
-// MARK: - 09 Reserve
+// MARK: - 07 Reserve
 
 private struct ReservePanel: View {
     let hip: Hip
@@ -421,7 +536,7 @@ private struct ReservePanel: View {
     }
 }
 
-// MARK: - 10 Sale Walk Video
+// MARK: - 08 Sale Walk Video
 
 private struct VideoPanel: View {
     let url: URL?
@@ -507,7 +622,7 @@ private struct WebVideo: UIViewRepresentable {
     func updateUIView(_ view: WKWebView, context: Context) {}
 }
 
-// MARK: - 11 Sale Picture
+// MARK: - 09 Sale Picture
 
 private struct PhotoPanel: View {
     let url: URL?
@@ -541,7 +656,7 @@ private struct MediaPlaceholder: View {
     }
 }
 
-// MARK: - 12 HP (horse physical)
+// MARK: - 10 HP (horse physical)
 
 private struct PhysicalPanel: View {
     let physical: HorsePhysical?

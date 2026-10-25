@@ -18,7 +18,7 @@ struct AccountView: View {
                         LabeledContent("Name", value: user.name)
                         LabeledContent("Role", value: user.role.label)
                         if let slot = OpinionSlot.allCases.first(where: { store.isAuthor($0) }) {
-                            LabeledContent("Posts", value: slot.field.title)
+                            LabeledContent("Posts", value: slot.title)
                         }
                     }
                 }
@@ -113,7 +113,7 @@ struct AccountView: View {
 
     private func personDetail(_ person: AppUser) -> String {
         if let slot = OpinionSlot.allCases.first(where: { store.sale.member($0)?.uid == person.uid }) {
-            return "\(person.role.label) · posts \(slot.field.title)"
+            return "\(person.role.label) · posts \(slot.title)"
         }
         return person.role.label
     }

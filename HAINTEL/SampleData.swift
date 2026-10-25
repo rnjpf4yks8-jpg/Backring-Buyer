@@ -45,7 +45,8 @@ enum SampleData {
                 AuctionRecord(sale: "November Breeding Stock", date: "Nov 2025", hip: 1088, result: "Sold as foal, $185,000")
             ],
             walkVideoURL: sampleVideo, walkVideoLength: "0:42", photoURL: nil, physical: HorsePhysical(heightInches: 61.5, lengthInches: 63, measuredBy: "T. Nguyen", date: "Sep 6, 2026"),
-            opinionsIn: OpinionSlot.allCases
+            opinionsIn: OpinionSlot.allCases, conformationGrade: 8.0, pedigreeGrade: 4.5,
+            gradeNotes: "Big, balanced colt with a strong female family."
         ),
         Hip(
             number: 413, name: "", sex: "filly", color: "Chestnut", foaled: "Mar 3, 2025",
@@ -57,7 +58,7 @@ enum SampleData {
             reserve: 175_000,
             auctionHistory: [],
             walkVideoURL: sampleVideo, walkVideoLength: "0:38", photoURL: nil, physical: HorsePhysical(heightInches: 60, lengthInches: 61, measuredBy: "T. Nguyen", date: "Sep 6, 2026"),
-            opinionsIn: OpinionSlot.allCases
+            opinionsIn: OpinionSlot.allCases, conformationGrade: 7.0, pedigreeGrade: 4.0
         ),
         Hip(
             number: 415, name: "Harbor Lights", sex: "colt", color: "Dark bay", foaled: "Jan 29, 2025",
@@ -71,7 +72,8 @@ enum SampleData {
                 AuctionRecord(sale: "November Breeding Stock", date: "Nov 2025", hip: 942, result: "RNA at $90,000")
             ],
             walkVideoURL: nil, walkVideoLength: "", photoURL: nil, physical: HorsePhysical(heightInches: 62.5, lengthInches: 65, measuredBy: "R. Okafor", date: "Sep 7, 2026"),
-            opinionsIn: OpinionSlot.allCases
+            opinionsIn: OpinionSlot.allCases, conformationGrade: 8.5, pedigreeGrade: 3.5,
+            gradeNotes: "Best-made colt in the barn; page is lighter."
         ),
         Hip(
             number: 418, name: "", sex: "filly", color: "Gray", foaled: "Apr 11, 2025",
@@ -97,7 +99,7 @@ enum SampleData {
                 AuctionRecord(sale: "Winter Mixed Sale", date: "Jan 2026", hip: 77, result: "Outs (scratched)")
             ],
             walkVideoURL: sampleVideo, walkVideoLength: "0:44", photoURL: nil, physical: HorsePhysical(heightInches: 61, lengthInches: 64, measuredBy: "R. Okafor", date: "Sep 7, 2026"),
-            opinionsIn: OpinionSlot.allCases
+            opinionsIn: OpinionSlot.allCases, conformationGrade: 7.5, pedigreeGrade: 4.5
         ),
     ]
 

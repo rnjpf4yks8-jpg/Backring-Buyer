@@ -33,6 +33,10 @@ Every sale appears in the app's sales list, newest first. The sale created last 
 website. Re-importing updates catalog fields only; what staff entered in the app is kept.
 Optional columns `pedigreeURL`, `walkVideoURL`, `photoURL` and `walkVideoLength` link each hip's catalog
 page, walk video and sale picture on the sale company's site.
+Optional columns `conformation_grade` (C, 1–10) and `pedigree_grade` (P, 1–5), in half points like 8.0 or
+4.5, are HAINTEL's grades; `grade_notes` is a one-line reason. A blank cell keeps the hip's current grade, and
+a value out of range is skipped with a warning. The app shows the grades beside the hip number and ranks
+each hip by them within the sale. Staff can also enter grades in the app (Hip Number → Edit).
 Staff can also add and edit hips one at a time in the app (the + button).
 
 ## People
@@ -44,11 +48,14 @@ node admin.js assign ft-oct-2026 vet2 vet.two@example.com "Hagyard Partners"
 node admin.js assign ft-oct-2026 bs1  agent.one@example.com "Whitaker Bloodstock"
 node admin.js assign ft-oct-2026 bs2  agent.two@example.com "Castellano Thoroughbreds"
 ```
-Each vet and agent sees a **Post** button on their own button only. Staff see **Edit** on every other button.
+Vet 1 and Vet 2 share the **Vet Opinions** button; BS1 and BS2 share **Bloodstock Opinions**. Each screen has a
+menu to pick whose opinion to read. Each vet and agent sees a **Post** button on their own group's screen, and it
+posts only their own opinion. Staff see **Edit** on every other button.
 
 ## Who can see what
-- Catalog data (hip info, pedigree, vet report summary, history, reserve, video, picture, HP): everyone.
-- Vet 1, Vet 2, BS1, BS2: the author, staff, and buyers who paid ($25 vet, $50 agent).
+- Catalog data (hip info, HAINTEL grades, pedigree, vet report summary, history, reserve, video, picture, HP): everyone.
+- Vet 1, Vet 2 (under Vet Opinions) and BS1, BS2 (under Bloodstock Opinions): the author, staff, and buyers
+  who paid ($25 vet, $50 agent). Each opinion is bought on its own.
 
 ## Payments
 For testing, `node admin.js test-purchases on` lets the Buy button unlock opinions without charging.

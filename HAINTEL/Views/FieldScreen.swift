@@ -25,10 +25,11 @@ struct FieldScreen: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .task(id: "\(hip.number)-\(field.rawValue)-\(store.purchases.count)") {
-                    if let slot = field.slot { await store.loadOpinion(slot, hip: hip) }
+                    // Every opinion under this button that the user can read, so its menu shows each one's grade or rank.
+                    for slot in field.slots { await store.loadOpinion(slot, hip: hip) }
                 }
                 .sheet(isPresented: $editing) {
-                    EditSheet(field: field, hip: hip, isNew: false)
+                    EditSheet(field: field, hip: hip, isNew: false, slot: store.ownSlot(in: field))
                 }
             } else {
                 ContentUnavailableView("No hip selected", systemImage: "number")
@@ -52,8 +53,9 @@ struct FieldScreen: View {
         .safeAreaInset(edge: .bottom) { pager }
     }
 
+    /// On Vet Opinions and Bloodstock Opinions, the button posts or edits the signed-in vet's or agent's own opinion.
     private var editLabel: String {
-        guard let slot = field.slot, let hip = store.currentHip else { return "Edit" }
+        guard let slot = store.ownSlot(in: field), let hip = store.currentHip else { return "Edit" }
         return hip.opinionsIn.contains(slot) || hip.pendingSlots.contains(slot) ? "Edit" : "Post"
     }
 

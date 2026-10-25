@@ -8,28 +8,35 @@ struct EditSheet: View {
     let field: HipField
     let original: Hip
     let isNew: Bool
+    /// On Vet Opinions and Bloodstock Opinions: the opinion being posted (the signed-in vet's or agent's own).
+    let slot: OpinionSlot?
 
     @State private var draft: Hip
     @State private var hasReserve: Bool
     @State private var reserve: Int
     @State private var measured: Bool
     @State private var physical: HorsePhysical
+    @State private var conformationText: String
+    @State private var pedigreeText: String
     @State private var opinion = Opinion()
     @State private var saving = false
     @State private var uploading = false
     @State private var pickedMedia: PhotosPickerItem?
     @State private var problem: String?
 
-    init(field: HipField, hip: Hip, isNew: Bool) {
+    init(field: HipField, hip: Hip, isNew: Bool, slot: OpinionSlot? = nil) {
         self.field = field
         self.original = hip
         self.isNew = isNew
+        self.slot = field.isOpinionGroup ? slot : nil
         _draft = State(initialValue: hip)
         _hasReserve = State(initialValue: hip.reserve != nil)
         _reserve = State(initialValue: hip.reserve ?? 0)
         _measured = State(initialValue: hip.physical != nil)
         _physical = State(initialValue: hip.physical
             ?? HorsePhysical(heightInches: 60, lengthInches: 60, measuredBy: "", date: today))
+        _conformationText = State(initialValue: hip.conformationGrade.map(Hip.gradeText) ?? "")
+        _pedigreeText = State(initialValue: hip.pedigreeGrade.map(Hip.gradeText) ?? "")
     }
 
     var body: some View {
@@ -44,14 +51,14 @@ struct EditSheet: View {
                 case .saleWalkVideo: media(.walkVideo)
                 case .salePicture: media(.photo)
                 case .hp: physicalForm
-                case .vet1, .vet2: vetOpinion
-                case .bs1Rank, .bs2Rank: agentOpinion
+                case .vetOpinions: vetOpinion
+                case .bloodstockOpinions: agentOpinion
                 }
                 if let problem {
                     Section { Text(problem).foregroundStyle(Theme.red) }
                 }
             }
-            .navigationTitle(isNew ? "Add hip" : (field.slot == nil ? "Edit \(field.title)" : field.title))
+            .navigationTitle(isNew ? "Add hip" : (slot?.title ?? "Edit \(field.title)"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -59,7 +66,7 @@ struct EditSheet: View {
                     if saving {
                         ProgressView()
                     } else {
-                        Button(field.slot == nil ? "Save" : "Post") { Task { await save() } }
+                        Button(field.isOpinionGroup ? "Post" : "Save") { Task { await save() } }
                             .disabled(uploading)
                     }
                 }
@@ -71,20 +78,38 @@ struct EditSheet: View {
     // MARK: Staff forms
 
     private var hipInfo: some View {
-        Section {
-            TextField("Hip number", value: $draft.number, format: .number.grouping(.never))
-                .keyboardType(.numberPad)
-            TextField("Name (blank if unnamed)", text: $draft.name)
-            Picker("Sex", selection: $draft.sex) {
-                ForEach(["colt", "filly", "gelding", "horse", "mare"], id: \.self) { Text($0.capitalized).tag($0) }
+        Group {
+            Section {
+                TextField("Hip number", value: $draft.number, format: .number.grouping(.never))
+                    .keyboardType(.numberPad)
+                TextField("Name (blank if unnamed)", text: $draft.name)
+                Picker("Sex", selection: $draft.sex) {
+                    ForEach(["colt", "filly", "gelding", "horse", "mare"], id: \.self) { Text($0.capitalized).tag($0) }
+                }
+                TextField("Color", text: $draft.color)
+                TextField("Foaled", text: $draft.foaled)
+                TextField("Session", text: $draft.session)
+                TextField("Barn", text: $draft.barn)
+                TextField("Consignor", text: $draft.consignor)
+            } footer: {
+                Text("Copy these from the sale catalog.")
             }
-            TextField("Color", text: $draft.color)
-            TextField("Foaled", text: $draft.foaled)
-            TextField("Session", text: $draft.session)
-            TextField("Barn", text: $draft.barn)
-            TextField("Consignor", text: $draft.consignor)
-        } footer: {
-            Text("Copy these from the sale catalog.")
+            Section {
+                LabeledContent("C · Conformation (1–10)") {
+                    TextField("8.0", text: $conformationText)
+                        .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                }
+                LabeledContent("P · Pedigree (1–5)") {
+                    TextField("4.5", text: $pedigreeText)
+                        .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                }
+                TextField("Why (one line)", text: Binding(
+                    get: { draft.gradeNotes ?? "" }, set: { draft.gradeNotes = $0 }))
+            } header: {
+                Text("HAINTEL grades")
+            } footer: {
+                Text("Half points, like 8.0 or 4.5. Leave blank if not graded yet. Ranks in the sale are worked out from these.")
+            }
         }
     }
 
@@ -266,7 +291,7 @@ struct EditSheet: View {
     // MARK: Actions
 
     private func loadOpinion() {
-        guard let slot = field.slot else { return }
+        guard let slot else { return }
         if let existing = store.opinion(slot, hip: original) {
             opinion = existing
         } else {
@@ -293,7 +318,11 @@ struct EditSheet: View {
 
     private func save() async {
         problem = nil
-        if let slot = field.slot {
+        if field.isOpinionGroup {
+            guard let slot else {
+                problem = "Only the vet or agent on this sale’s panel can post here."
+                return
+            }
             guard !opinion.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 problem = "Write your opinion before posting."
                 return
@@ -309,6 +338,22 @@ struct EditSheet: View {
                 problem = "Hip \(draft.number) is already in this sale."
                 return
             }
+            if field == .hipNumber {
+                let conformation = parseGrade(conformationText, max: 10)
+                let pedigree = parseGrade(pedigreeText, max: 5)
+                guard conformation.valid else {
+                    problem = "Conformation grade is 1 to 10 in half points, like 8.0 or 7.5. Leave it blank if not graded."
+                    return
+                }
+                guard pedigree.valid else {
+                    problem = "Pedigree grade is 1 to 5 in half points, like 4.5. Leave it blank if not graded."
+                    return
+                }
+                draft.conformationGrade = conformation.value
+                draft.pedigreeGrade = pedigree.value
+                let notes = (draft.gradeNotes ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                draft.gradeNotes = notes.isEmpty ? nil : notes
+            }
             draft.reserve = hasReserve ? reserve : nil
             draft.physical = measured ? physical : nil
             saving = true
@@ -316,6 +361,16 @@ struct EditSheet: View {
         }
         saving = false
         if store.errorMessage == nil { dismiss() } else { problem = store.errorMessage }
+    }
+
+    /// A grade typed by staff. Blank is valid and means not graded; otherwise 1 to `max` in half points.
+    private func parseGrade(_ text: String, max: Double) -> (valid: Bool, value: Double?) {
+        let trimmed = text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
+        if trimmed.isEmpty { return (true, nil) }
+        guard let value = Double(trimmed), value >= 1, value <= max, (value * 2).rounded() == value * 2 else {
+            return (false, nil)
+        }
+        return (true, value)
     }
 }
 

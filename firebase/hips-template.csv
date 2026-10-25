@@ -1,3 +1,3 @@
-number,name,sex,color,foaled,session,barn,consignor,sire,sireSire,sireDam,dam,damSire,damDam,reserve
-412,,colt,Bay,"Feb 14, 2025",Session 1,Barn 23,"Willow Ridge Sales, Agent",Northern Ledger,Granite Crown,Ledger Line,Lady Marisol,Coastal Prince,Marisol Bay,350000
-413,,filly,Chestnut,"Mar 3, 2025",Session 1,Barn 23,"Willow Ridge Sales, Agent",Silver Tempo,Tempo Rubato,Quicksilver Lane,Arden Rose,Highland Reel,Rosewater,
+number,name,sex,color,foaled,session,barn,consignor,sire,sireSire,sireDam,dam,damSire,damDam,reserve,conformation_grade,pedigree_grade,grade_notes
+412,,colt,Bay,"Feb 14, 2025",Session 1,Barn 23,"Willow Ridge Sales, Agent",Northern Ledger,Granite Crown,Ledger Line,Lady Marisol,Coastal Prince,Marisol Bay,350000,8.0,4.5,"Big, balanced colt with a strong female family."
+413,,filly,Chestnut,"Mar 3, 2025",Session 1,Barn 23,"Willow Ridge Sales, Agent",Silver Tempo,Tempo Rubato,Quicksilver Lane,Arden Rose,Highland Reel,Rosewater,,,,
