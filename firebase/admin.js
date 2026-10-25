@@ -6,6 +6,7 @@
 //   node admin.js set-role <email> <buyer|staff|vet|agent> "<name>"
 //   node admin.js assign <saleId> <vet1|vet2|bs1|bs2> <email> "<practice or agency>"
 //   node admin.js test-purchases <on|off>
+//   node admin.js pedigree-ranks <saleId> <ranks.json>   (ranks.json from pedigree-rank/score.py)
 const fs = require('fs');
 const admin = require('firebase-admin');
 
@@ -151,8 +152,32 @@ function parseCSV(text) {
   return rows;
 }
 
+// Saves each hip's pedigree rank. Hips in the file but not in the sale are dropped and the rest
+// renumbered 1..n in the file's order, so ranks always run over the hips the app shows.
+async function pedigreeRanks(saleId, file) {
+  if (!saleId || !file) throw usage();
+  const scored = JSON.parse(fs.readFileSync(file, 'utf8'))[saleId];
+  if (!scored) throw new Error(`${file} has no ranks for ${saleId}.`);
+  const hipsRef = db.collection('sales').doc(saleId).collection('hips');
+  const existing = new Set((await hipsRef.select().get()).docs.map(d => d.id));
+  const ranked = scored.filter(h => existing.has(String(h.hip))).sort((a, b) => a.rank - b.rank);
+  let batch = db.batch(), pending = 0;
+  for (const [i, h] of ranked.entries()) {
+    batch.set(hipsRef.doc(String(h.hip)), {
+      pedigreeRank: {
+        rank: i + 1, outOf: ranked.length, score: h.score,
+        sire: h.sireIdxPct, dam: h.damIdxPct, damSire: h.dsIdxPct,
+      },
+    }, { merge: true });
+    if (++pending === 400) { await batch.commit(); batch = db.batch(); pending = 0; }
+  }
+  if (pending) await batch.commit();
+  const unranked = existing.size - ranked.length;
+  console.log(`Ranked ${ranked.length} hips in ${saleId}.` + (unranked ? ` ${unranked} hips had no score and were left alone.` : ''));
+}
+
 function usage() {
-  return new Error(fs.readFileSync(__filename, 'utf8').split('\n').slice(0, 9).join('\n'));
+  return new Error(fs.readFileSync(__filename, 'utf8').split('\n').slice(0, 10).join('\n'));
 }
 
 const [command, ...args] = process.argv.slice(2);
@@ -162,6 +187,7 @@ const commands = {
   'set-role': setRole,
   'assign': assign,
   'test-purchases': testPurchases,
+  'pedigree-ranks': pedigreeRanks,
 };
 
 Promise.resolve()
