@@ -353,11 +353,19 @@ final class SaleStore {
         rank(hip.pedigreeGrade, among: hips.compactMap { $0.pedigreeGrade })
     }
 
+    /// Rank of the hip's combined grade (C + P, out of 15) in the open sale. Nil unless it has both grades.
+    func combinedRank(_ hip: Hip) -> Int? {
+        rank(hip.combinedGrade, among: hips.compactMap { $0.combinedGrade })
+    }
+
     /// How many hips in the open sale have a conformation grade.
     var conformationGradedCount: Int { hips.filter { $0.conformationGrade != nil }.count }
 
     /// How many hips in the open sale have a pedigree grade.
     var pedigreeGradedCount: Int { hips.filter { $0.pedigreeGrade != nil }.count }
+
+    /// How many hips in the open sale have both grades, and so a combined grade.
+    var combinedGradedCount: Int { hips.filter { $0.combinedGrade != nil }.count }
 
     /// 1 + the number of grades strictly higher than this one.
     private func rank(_ grade: Double?, among grades: [Double]) -> Int? {

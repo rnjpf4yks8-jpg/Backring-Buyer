@@ -116,6 +116,12 @@ struct Hip: Codable, Identifiable, Hashable {
 
     var isGraded: Bool { conformationGrade != nil || pedigreeGrade != nil }
 
+    /// C + P, out of 15. Nil until the hip has both grades.
+    var combinedGrade: Double? {
+        guard let conformationGrade, let pedigreeGrade else { return nil }
+        return conformationGrade + pedigreeGrade
+    }
+
     /// A grade the way staff write it, with one decimal: 8.0, 4.5.
     static func gradeText(_ grade: Double) -> String { String(format: "%.1f", grade) }
 

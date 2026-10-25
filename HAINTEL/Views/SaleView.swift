@@ -192,7 +192,8 @@ private struct HipHeader: View {
     }
 }
 
-/// HAINTEL's two grades beside the hip number: "8.0 · 4.5" (C · P), with their ranks in the sale under it.
+/// HAINTEL's grades beside the hip number: "8.0 · 4.5 · 12.5" (C · P · combined out of 15), with their ranks
+/// in the sale under it.
 /// Shows nothing until the hip is graded.
 private struct HipGrades: View {
     @Environment(SaleStore.self) private var store
@@ -202,18 +203,19 @@ private struct HipGrades: View {
         if hip.isGraded {
             let cRank = store.conformationRank(hip)
             let pRank = store.pedigreeRank(hip)
+            let tRank = store.combinedRank(hip)
             VStack(alignment: .leading, spacing: 1) {
-                Text("\(text(hip.conformationGrade)) · \(text(hip.pedigreeGrade))")
+                Text("\(text(hip.conformationGrade)) · \(text(hip.pedigreeGrade)) · \(text(hip.combinedGrade))")
                     .font(Theme.mono(15, .bold))
                     .foregroundStyle(Theme.amber)
-                Text(ranks(c: cRank, p: pRank))
+                Text(ranks(c: cRank, p: pRank, t: tRank))
                     .font(Theme.sans(11, .medium))
                     .foregroundStyle(Theme.muted)
             }
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(spoken(cRank: cRank, pRank: pRank))
+            .accessibilityLabel(spoken(cRank: cRank, pRank: pRank, tRank: tRank))
         }
     }
 
@@ -221,18 +223,21 @@ private struct HipGrades: View {
         grade.map(Hip.gradeText) ?? "–"
     }
 
-    private func ranks(c: Int?, p: Int?) -> String {
-        "C \(c.map { "#\($0)" } ?? "–") · P \(p.map { "#\($0)" } ?? "–")"
+    private func ranks(c: Int?, p: Int?, t: Int?) -> String {
+        "C \(c.map { "#\($0)" } ?? "–") · P \(p.map { "#\($0)" } ?? "–") · C+P \(t.map { "#\($0)" } ?? "–")"
     }
 
-    private func spoken(cRank: Int?, pRank: Int?) -> String {
+    private func spoken(cRank: Int?, pRank: Int?, tRank: Int?) -> String {
         let conformation = hip.conformationGrade.map {
             "Conformation \(Hip.gradeText($0)) of 10, rank \(cRank ?? 0) of \(store.conformationGradedCount)"
         } ?? "Conformation not graded"
         let pedigree = hip.pedigreeGrade.map {
             "pedigree \(Hip.gradeText($0)) of 5, rank \(pRank ?? 0) of \(store.pedigreeGradedCount)"
         } ?? "pedigree not graded"
-        return "\(conformation); \(pedigree)"
+        let combined = hip.combinedGrade.map {
+            "combined \(Hip.gradeText($0)) of 15, rank \(tRank ?? 0) of \(store.combinedGradedCount)"
+        } ?? "no combined grade"
+        return "\(conformation); \(pedigree); \(combined)"
     }
 }
 
