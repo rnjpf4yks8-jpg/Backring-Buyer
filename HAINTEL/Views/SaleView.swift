@@ -121,6 +121,8 @@ struct ErrorBanner: View {
 private struct HipHeader: View {
     @Environment(SaleStore.self) private var store
     let hip: Hip
+    @State private var showGoTo = false
+    @State private var goTo = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -128,10 +130,18 @@ private struct HipHeader: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             HStack(alignment: .center) {
-                Text("Hip \(hip.number)")
-                    .font(Theme.mono(34, .bold))
-                    .foregroundStyle(.white)
-                    .contentTransition(.numericText())
+                Button { goTo = ""; showGoTo = true } label: {
+                    HStack(spacing: 8) {
+                        Text("Hip \(hip.number)")
+                            .font(Theme.mono(34, .bold))
+                            .foregroundStyle(.white)
+                            .contentTransition(.numericText())
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Theme.amber)
+                    }
+                }
+                .accessibilityLabel("Hip \(hip.number). Go to another hip")
                 Spacer()
                 HipStepButton(symbol: "chevron.left", enabled: store.hasPreviousHip) { store.stepHip(-1) }
                     .accessibilityLabel("Previous hip")
@@ -154,6 +164,14 @@ private struct HipHeader: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Theme.navy)
         .animation(.snappy, value: hip.number)
+        .alert("Go to hip", isPresented: $showGoTo) {
+            TextField("Hip number", text: $goTo)
+                .keyboardType(.numberPad)
+            Button("Go") { store.goToHip(goTo) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("\(store.sale.name) has \(store.hips.count.formatted()) hips.")
+        }
     }
 }
 

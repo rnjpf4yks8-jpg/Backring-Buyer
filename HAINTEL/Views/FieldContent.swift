@@ -100,7 +100,7 @@ private struct HipNumberPanel: View {
                 .background(.white, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.line))
 
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 ForEach(matches) { other in
                     Button {
                         store.currentHipNumber = other.number

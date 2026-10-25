@@ -220,6 +220,16 @@ final class SaleStore {
     var hasPreviousHip: Bool { currentIndex > 0 }
     var hasNextHip: Bool { currentIndex < hips.count - 1 }
 
+    /// Jumps to the hip number typed in "Go to hip".
+    func goToHip(_ text: String) {
+        guard let number = Int(text.trimmingCharacters(in: .whitespaces)) else { return }
+        if hip(number) != nil {
+            currentHipNumber = number
+        } else {
+            errorMessage = "Hip \(number) isn’t in \(sale.name)."
+        }
+    }
+
     /// Moves to the previous (-1) or next (+1) hip in catalog order.
     func stepHip(_ delta: Int) {
         let target = currentIndex + delta
