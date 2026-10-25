@@ -80,6 +80,8 @@ struct Hip: Codable, Identifiable, Hashable {
     var barn = ""
     var consignor = ""
     var pedigree = Pedigree()
+    /// The sale company's catalog page (pedigree PDF) for this hip.
+    var pedigreeURL: URL?
     var vetReport = VetReport()
     var reserve: Int?
     var auctionHistory: [AuctionRecord] = []

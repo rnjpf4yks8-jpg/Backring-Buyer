@@ -100,6 +100,14 @@ struct EditSheet: View {
                 TextField("Dam’s sire", text: $draft.pedigree.damSire)
                 TextField("Dam’s dam", text: $draft.pedigree.damDam)
             }
+            Section {
+                TextField("https://…", text: link(\.pedigreeURL))
+                    .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
+            } header: {
+                Text("Catalog page link")
+            } footer: {
+                Text("The hip's pedigree page on the sale company's website.")
+            }
         }
     }
 
@@ -184,6 +192,8 @@ struct EditSheet: View {
             } else if (kind == .photo ? draft.photoURL : draft.walkVideoURL) != nil {
                 Label("Uploaded", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.green)
             }
+            TextField("Or paste a link", text: link(kind == .photo ? \.photoURL : \.walkVideoURL))
+                .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
             if kind == .walkVideo {
                 TextField("Length (e.g. 0:42)", text: $draft.walkVideoLength)
             }
@@ -234,6 +244,17 @@ struct EditSheet: View {
                 TextField("What buyers should know", text: $opinion.notes, axis: .vertical).lineLimit(4...12)
             }
         }
+    }
+
+    /// Edits an optional URL on the draft as text. Blank clears it.
+    private func link(_ keyPath: WritableKeyPath<Hip, URL?>) -> Binding<String> {
+        Binding(
+            get: { draft[keyPath: keyPath]?.absoluteString ?? "" },
+            set: { text in
+                let trimmed = text.trimmingCharacters(in: .whitespaces)
+                draft[keyPath: keyPath] = trimmed.isEmpty ? nil : URL(string: trimmed)
+            }
+        )
     }
 
     private func gradePicker(_ selection: Binding<Grade>) -> some View {

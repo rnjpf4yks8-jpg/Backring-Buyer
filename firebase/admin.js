@@ -61,6 +61,10 @@ async function importHips(saleId, file) {
     };
     const reserve = parseInt(get('reserve').replace(/[$,]/g, ''), 10);
     if (reserve) catalog.reserve = reserve;
+    // Optional links: catalog page, walk video and sale picture on the sale company's site.
+    for (const key of ['pedigreeURL', 'walkVideoURL', 'photoURL', 'walkVideoLength']) {
+      if (get(key)) catalog[key] = get(key);
+    }
 
     const ref = hipsRef.doc(String(number));
     const snap = await ref.get();

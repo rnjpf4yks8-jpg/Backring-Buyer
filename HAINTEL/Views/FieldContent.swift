@@ -9,7 +9,7 @@ struct FieldContent: View {
         switch field {
         case .hipNumber: HipNumberPanel(hip: hip)
         case .vetReport: VetReportPanel(report: hip.vetReport)
-        case .pedigree: PedigreePanel(pedigree: hip.pedigree)
+        case .pedigree: PedigreePanel(pedigree: hip.pedigree, catalogPage: hip.pedigreeURL)
         case .auctionHistory: AuctionHistoryPanel(records: hip.auctionHistory)
         case .vet1: OpinionContent(slot: .vet1, hip: hip)
         case .vet2: OpinionContent(slot: .vet2, hip: hip)
@@ -179,11 +179,24 @@ private struct VetReportPanel: View {
 
 private struct PedigreePanel: View {
     let pedigree: Pedigree
+    let catalogPage: URL?
 
     var body: some View {
         VStack(spacing: 12) {
             parent(role: "Sire", name: pedigree.sire, sire: pedigree.sireSire, dam: pedigree.sireDam)
             parent(role: "Dam", name: pedigree.dam, sire: pedigree.damSire, dam: pedigree.damDam)
+            if let catalogPage {
+                Link(destination: catalogPage) {
+                    Card {
+                        HStack {
+                            Label("Full catalog page", systemImage: "doc.text")
+                                .font(Theme.sans(16, .semibold)).foregroundStyle(Theme.ink)
+                            Spacer()
+                            Image(systemName: "arrow.up.right").foregroundStyle(Theme.slate)
+                        }
+                    }
+                }
+            }
         }
     }
 
