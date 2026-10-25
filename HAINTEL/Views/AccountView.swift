@@ -67,7 +67,7 @@ struct AccountView: View {
                         SecureField("Password", text: $password)
                             .textContentType(creating ? .newPassword : .password)
                     } footer: {
-                        Text("New accounts are buyer accounts. HAINTEL staff set up accounts for staff, vets and bloodstock agents.")
+                        Text("Catalog info is free. Vet and agent opinions are paid with the card on your Apple ID, so there’s no card to enter here. Vets and agents: create an account, then HAINTEL staff add you to a sale.")
                     }
                     Section {
                         Button {

@@ -646,7 +646,7 @@ private struct Paywall: View {
                     if buying {
                         ProgressView().tint(Theme.navy)
                     } else {
-                        Text(store.user == nil ? "Sign in to buy · \(usd(store.sale.price(slot)))" : "Buy for \(usd(store.sale.price(slot)))")
+                        Text(store.user == nil ? "Sign in to buy · \(store.price(slot))" : "Buy for \(store.price(slot))")
                     }
                 }
                 .font(Theme.sans(16, .semibold))
@@ -655,7 +655,7 @@ private struct Paywall: View {
                 .background(Theme.amber, in: RoundedRectangle(cornerRadius: 8))
             }
             .disabled(buying)
-            Text("One-time purchase for this hip.")
+            Text(store.isDemo ? "One-time purchase for this hip." : "One-time purchase for this hip, charged to the card on your Apple ID.")
                 .font(Theme.sans(13))
                 .foregroundStyle(Theme.muted)
         }

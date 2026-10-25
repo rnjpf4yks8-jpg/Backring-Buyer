@@ -8,3 +8,4 @@ HAINTEL.zip
 # Firebase service account keys must never be committed
 *service-account*.json
 *-firebase-adminsdk-*.json
+firebase/functions/node_modules/

@@ -7,6 +7,7 @@ import Observation
 @Observable
 final class SaleStore {
     let backend: SaleBackend
+    let payments = Payments()
     /// Every sale, newest first.
     var sales: [Sale] = []
     var featuredSaleID: String?
@@ -48,6 +49,7 @@ final class SaleStore {
             try await reloadSales()
             try await reloadPurchases()
         }
+        if !isDemo { await payments.loadProducts() }
         await loadHipCounts()
     }
 
@@ -188,13 +190,48 @@ final class SaleStore {
         hips.flatMap { hip in hip.pendingSlots.map { PendingOpinion(hip: hip, slot: $0) } }
     }
 
+    /// Buys one opinion with Apple in-app purchase (demo mode skips payment).
     func buy(_ slot: OpinionSlot, hip: Hip) async {
         guard let user else { return }
+        let id = purchaseID(slot, hip: hip)
         await attempt {
-            try await backend.recordPurchase(uid: user.uid, saleID: sale.id, hip: hip.number, slot: slot)
-            purchases.insert(purchaseID(slot, hip: hip))
+            if isDemo {
+                try await backend.recordPurchase(uid: user.uid, purchaseID: id, receipt: nil)
+            } else {
+                switch try await payments.purchase(slot, purchaseID: "\(user.uid)/\(id)") {
+                case .cancelled:
+                    return
+                case .pending:
+                    throw BackendError(message: "Your purchase is waiting for approval. The opinion unlocks as soon as it goes through.")
+                case .paid(let receipt, let transaction):
+                    try await backend.recordPurchase(uid: user.uid, purchaseID: id, receipt: receipt)
+                    await payments.finish(transaction)
+                }
+            }
+            purchases.insert(id)
             await loadOpinion(slot, hip: hip)
         }
+    }
+
+    /// Records purchases that finished outside the purchase sheet (Ask to Buy, or the app closed mid-purchase).
+    func settlePurchases() async {
+        await payments.settle { [weak self] intent, receipt in
+            guard let self else { return false }
+            let parts = intent.split(separator: "/", maxSplits: 1).map(String.init)
+            guard parts.count == 2, parts[0] == self.user?.uid else { return false }
+            do {
+                try await self.backend.recordPurchase(uid: parts[0], purchaseID: parts[1], receipt: receipt)
+                self.purchases.insert(parts[1])
+                return true
+            } catch {
+                return false
+            }
+        }
+    }
+
+    /// The price buyers pay: the App Store's price (set in App Store Connect), or the sale's price in demo mode.
+    func price(_ slot: OpinionSlot) -> String {
+        payments.displayPrice(slot) ?? usd(sale.price(slot))
     }
 
     func purchaseID(_ slot: OpinionSlot, hip: Hip) -> String {
@@ -302,7 +339,7 @@ extension SaleStore {
                 return (isStaff ? "Needs approval" : "Waiting for approval", false)
             }
             guard hip.opinionsIn.contains(slot) else { return ("Not posted yet", false) }
-            guard canRead(slot, hip: hip) else { return ("Unlock · \(usd(sale.price(slot)))", true) }
+            guard canRead(slot, hip: hip) else { return ("Unlock · \(price(slot))", true) }
             guard let opinion = opinion(slot, hip: hip) else { return ("Unlocked", false) }
             if slot.isVet { return (opinion.grade?.label ?? "Posted", false) }
             if let rank = opinion.rank, let outOf = opinion.outOf { return ("#\(rank) of \(outOf)", false) }

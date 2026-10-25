@@ -14,6 +14,7 @@ struct HAINTELApp: App {
                 .tint(Theme.blue)
                 .preferredColorScheme(.light)
                 .task { await store.start() }
+                .task { await store.settlePurchases() }
         }
     }
 

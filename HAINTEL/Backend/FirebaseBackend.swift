@@ -142,12 +142,16 @@ final class FirebaseBackend: SaleBackend {
         return Set(snap.documents.map(\.documentID))
     }
 
-    /// Test purchases only: the security rules allow this while config/app.testPurchases is true.
-    /// For launch, replace with StoreKit and a Cloud Function that verifies the receipt and writes this doc.
-    func recordPurchase(uid: String, saleID: String, hip: Int, slot: OpinionSlot) async throws {
-        try await db.collection("users").document(uid).collection("purchases")
-            .document("\(saleID)_\(hip)_\(slot.rawValue)")
-            .setData(["createdAt": FieldValue.serverTimestamp()])
+    /// Saves the App Store purchase with its signed transaction. The verifyPurchase Cloud Function checks
+    /// it with Apple and deletes the record if it isn't a real, unused purchase of the right product.
+    func recordPurchase(uid: String, purchaseID: String, receipt: PurchaseReceipt?) async throws {
+        var data: [String: Any] = ["createdAt": FieldValue.serverTimestamp()]
+        if let receipt {
+            data["transactionId"] = receipt.transactionID
+            data["productId"] = receipt.productID
+            data["signedTransaction"] = receipt.signedTransaction
+        }
+        try await db.collection("users").document(uid).collection("purchases").document(purchaseID).setData(data)
     }
 
     private func hipsRef(_ saleID: String) -> CollectionReference {

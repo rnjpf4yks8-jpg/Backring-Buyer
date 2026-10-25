@@ -38,7 +38,8 @@ protocol SaleBackend {
     func savePanel(_ panel: [String: PanelMember], saleID: String) async throws
 
     func loadPurchases(uid: String) async throws -> Set<String>
-    func recordPurchase(uid: String, saleID: String, hip: Int, slot: OpinionSlot) async throws
+    /// Saves that `uid` owns an opinion. `receipt` is the App Store's proof of payment (nil in demo mode).
+    func recordPurchase(uid: String, purchaseID: String, receipt: PurchaseReceipt?) async throws
 }
 
 struct BackendError: LocalizedError {
@@ -121,7 +122,7 @@ final class SampleBackend: SaleBackend {
 
     func loadPurchases(uid: String) async throws -> Set<String> { purchases[uid] ?? [] }
 
-    func recordPurchase(uid: String, saleID: String, hip: Int, slot: OpinionSlot) async throws {
-        purchases[uid, default: []].insert("\(saleID)_\(hip)_\(slot.rawValue)")
+    func recordPurchase(uid: String, purchaseID: String, receipt: PurchaseReceipt?) async throws {
+        purchases[uid, default: []].insert(purchaseID)
     }
 }

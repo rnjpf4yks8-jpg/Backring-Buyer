@@ -52,10 +52,15 @@ service cloud.firestore {
 
       match /purchases/{purchaseId} {
         allow read: if signedIn() && request.auth.uid == uid;
-        // Test purchases only. Turn off config/app.testPurchases before launch; then only
-        // a Cloud Function (admin access, ignores these rules) records purchases after StoreKit verifies them.
+        // An App Store purchase, saved with Apple's signed transaction for the right product. The
+        // verifyPurchase Cloud Function checks it with Apple and deletes it if it's not genuine.
+        // While config/app.testPurchases is on, records without a receipt are allowed too (testing only).
         allow create: if signedIn() && request.auth.uid == uid
-          && get(/databases/$(database)/documents/config/app).data.get('testPurchases', false) == true;
+          && (get(/databases/$(database)/documents/config/app).data.get('testPurchases', false) == true
+              || (request.resource.data.signedTransaction is string
+                  && request.resource.data.transactionId is string
+                  && request.resource.data.productId == (purchaseId.matches('.*_vet[12]$')
+                       ? 'com.example.haintel.vetopinion' : 'com.example.haintel.agentopinion')));
       }
     }
 
