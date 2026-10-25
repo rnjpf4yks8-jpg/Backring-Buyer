@@ -13,7 +13,7 @@ workflows:
       xcode: latest
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.haintel.app
+        bundle_identifier: com.example.haintel
     scripts:
       - name: Add Firebase config
         script: |
