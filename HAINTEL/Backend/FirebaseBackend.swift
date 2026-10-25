@@ -34,7 +34,7 @@ final class FirebaseBackend: SaleBackend {
     /// New accounts are always buyers. Staff change the role in Firestore for staff, vets and agents.
     func createAccount(name: String, email: String, password: String) async throws -> AppUser {
         let result = try await Auth.auth().createUser(withEmail: email, password: password)
-        let user = AppUser(uid: result.user.uid, name: name, role: .buyer)
+        let user = AppUser(uid: result.user.uid, name: name, role: .buyer, email: email)
         try db.collection("users").document(user.uid).setData(from: user)
         return user
     }
@@ -103,6 +103,23 @@ final class FirebaseBackend: SaleBackend {
         batch.updateData(["opinionsIn": FieldValue.arrayUnion([slot.rawValue])],
                          forDocument: hipsRef(saleID).document(String(hip)))
         try await batch.commit()
+    }
+
+    // MARK: People and panels (staff)
+
+    func loadPeople() async throws -> [AppUser] {
+        let snap = try await db.collection("users").getDocuments()
+        return try snap.documents.map { try $0.data(as: AppUser.self) }
+    }
+
+    func setRole(_ role: Role, uid: String) async throws {
+        try await db.collection("users").document(uid).updateData(["role": role.rawValue])
+    }
+
+    /// Replaces the sale's whole panel, so a cleared slot is removed.
+    func savePanel(_ panel: [String: PanelMember], saleID: String) async throws {
+        let encoded = try panel.mapValues { try Firestore.Encoder().encode($0) }
+        try await db.collection("sales").document(saleID).updateData(["panel": encoded])
     }
 
     // MARK: Purchases

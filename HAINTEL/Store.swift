@@ -21,6 +21,8 @@ final class SaleStore {
     var purchases: Set<String> = []
     /// Opinions loaded so far, keyed "<hip>_<slot>".
     var opinions: [String: Opinion] = [:]
+    /// Everyone with an account. Loaded when staff open the Panel screen.
+    var people: [AppUser] = []
     var isLoading = true
     var errorMessage: String?
 
@@ -183,6 +185,35 @@ final class SaleStore {
 
     func purchaseID(_ slot: OpinionSlot, hip: Hip) -> String {
         "\(sale.id)_\(hip.number)_\(slot.rawValue)"
+    }
+
+    // MARK: Panel (staff)
+
+    func loadPeople() async {
+        await attempt {
+            people = try await backend.loadPeople().sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }
+    }
+
+    /// Saves who holds Vet 1, Vet 2, BS1 and BS2 for the open sale. A buyer who is given a slot
+    /// becomes a vet or agent; staff keep their role.
+    func savePanel(_ panel: [String: PanelMember]) async -> Bool {
+        var saved = false
+        await attempt {
+            for (key, member) in panel {
+                guard let slot = OpinionSlot(rawValue: key),
+                      let i = people.firstIndex(where: { $0.uid == member.uid }),
+                      people[i].role == .buyer else { continue }
+                let role: Role = slot.isVet ? .vet : .agent
+                try await backend.setRole(role, uid: member.uid)
+                people[i].role = role
+            }
+            try await backend.savePanel(panel, saleID: sale.id)
+            sale.panel = panel
+            if let i = sales.firstIndex(where: { $0.id == sale.id }) { sales[i].panel = panel }
+            saved = true
+        }
+        return saved
     }
 
     // MARK: Hips (staff)

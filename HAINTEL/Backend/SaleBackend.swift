@@ -29,6 +29,11 @@ protocol SaleBackend {
     func loadOpinion(saleID: String, hip: Int, slot: OpinionSlot) async throws -> Opinion?
     func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot) async throws
 
+    /// Staff only: everyone with an account, for picking a sale's vets and agents.
+    func loadPeople() async throws -> [AppUser]
+    func setRole(_ role: Role, uid: String) async throws
+    func savePanel(_ panel: [String: PanelMember], saleID: String) async throws
+
     func loadPurchases(uid: String) async throws -> Set<String>
     func recordPurchase(uid: String, saleID: String, hip: Int, slot: OpinionSlot) async throws
 }
@@ -42,6 +47,8 @@ struct BackendError: LocalizedError {
 final class SampleBackend: SaleBackend {
     let isDemo = true
     private var hipsBySale = [SampleData.sale.id: SampleData.hips]
+    private var sales = SampleData.sales
+    private var people = SampleData.people
     private var opinions = SampleData.opinions
     private var purchases: [String: Set<String>] = [:]
 
@@ -57,7 +64,7 @@ final class SampleBackend: SaleBackend {
 
     func signOut() throws {}
 
-    func loadSales() async throws -> [Sale] { SampleData.sales }
+    func loadSales() async throws -> [Sale] { sales }
 
     func featuredSaleID() async throws -> String? { SampleData.sale.id }
 
@@ -91,6 +98,16 @@ final class SampleBackend: SaleBackend {
            hipsBySale[saleID]?[i].opinionsIn.contains(slot) == false {
             hipsBySale[saleID]?[i].opinionsIn.append(slot)
         }
+    }
+
+    func loadPeople() async throws -> [AppUser] { people }
+
+    func setRole(_ role: Role, uid: String) async throws {
+        if let i = people.firstIndex(where: { $0.uid == uid }) { people[i].role = role }
+    }
+
+    func savePanel(_ panel: [String: PanelMember], saleID: String) async throws {
+        if let i = sales.firstIndex(where: { $0.id == saleID }) { sales[i].panel = panel }
     }
 
     func loadPurchases(uid: String) async throws -> Set<String> { purchases[uid] ?? [] }

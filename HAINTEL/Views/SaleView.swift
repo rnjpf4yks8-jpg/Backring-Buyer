@@ -6,6 +6,7 @@ struct SaleView: View {
     let saleID: String
     @Binding var path: [Route]
     @State private var addingHip = false
+    @State private var editingPanel = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,7 +24,11 @@ struct SaleView: View {
         .toolbar {
             ToolbarItem(placement: .principal) { SaleSwitcher(path: $path) }
             if store.isStaff {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button { editingPanel = true } label: {
+                        Image(systemName: "person.2").foregroundStyle(.white)
+                    }
+                    .accessibilityLabel("Panel: vets and agents")
                     Button { addingHip = true } label: {
                         Image(systemName: "plus").foregroundStyle(.white)
                     }
@@ -35,6 +40,7 @@ struct SaleView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .task(id: saleID) { await store.open(saleID: saleID) }
+        .sheet(isPresented: $editingPanel) { PanelSheet() }
         .sheet(isPresented: $addingHip) {
             EditSheet(field: .hipNumber, hip: Hip(number: (store.hips.last?.number ?? 0) + 1), isNew: true)
         }

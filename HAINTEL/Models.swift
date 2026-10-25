@@ -173,6 +173,8 @@ struct AppUser: Codable, Hashable {
     var uid: String
     var name: String
     var role: Role
+    /// Saved when the account is created, so staff can tell people apart on the Panel screen.
+    var email: String? = nil
 }
 
 /// Screens pushed on the app's navigation stack: a sale's hip screen, then one of its 12 buttons.
