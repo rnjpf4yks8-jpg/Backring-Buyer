@@ -32,24 +32,106 @@ private struct OpinionContent: View {
 
     var body: some View {
         let member = store.sale.member(slot)
-        if !hip.opinionsIn.contains(slot) {
+        // Staff and the opinion's author see it at every stage; buyers only once it's approved.
+        let reviewer = store.isStaff || store.isAuthor(slot)
+        if reviewer, let opinion = store.opinion(slot, hip: hip) {
+            VStack(spacing: 12) {
+                ReviewBanner(status: opinion.reviewStatus, slot: slot, hip: hip)
+                opinionPanel(opinion, member: member)
+            }
+        } else if reviewer, hip.pendingSlots.contains(slot) || hip.opinionsIn.contains(slot) {
+            ProgressView().frame(maxWidth: .infinity, minHeight: 120)
+        } else if !hip.opinionsIn.contains(slot) {
             Card {
                 Text("Not posted yet").font(Theme.sans(17, .semibold)).foregroundStyle(Theme.ink)
                 Text(store.isAuthor(slot)
-                     ? "Tap Post to add your opinion on this hip."
+                     ? "Tap Post to add your opinion on this hip. HAINTEL approves it before buyers can see it."
                      : "\(member?.name ?? "The \(slot.isVet ? "vet" : "agent")") hasn’t posted an opinion on this hip yet.")
                     .font(Theme.sans(15)).foregroundStyle(Theme.slate)
             }
         } else if !store.canRead(slot, hip: hip) {
             Paywall(slot: slot, hip: hip)
         } else if let opinion = store.opinion(slot, hip: hip) {
-            if slot.isVet {
-                VetOpinionPanel(opinion: opinion, member: member)
-            } else {
-                AgentOpinionPanel(opinion: opinion, member: member)
-            }
+            opinionPanel(opinion, member: member)
         } else {
             ProgressView().frame(maxWidth: .infinity, minHeight: 120)
+        }
+    }
+
+    @ViewBuilder
+    private func opinionPanel(_ opinion: Opinion, member: PanelMember?) -> some View {
+        if slot.isVet {
+            VetOpinionPanel(opinion: opinion, member: member)
+        } else {
+            AgentOpinionPanel(opinion: opinion, member: member)
+        }
+    }
+}
+
+/// Where an opinion stands in HAINTEL's review. Staff approve or return pending opinions here.
+private struct ReviewBanner: View {
+    @Environment(SaleStore.self) private var store
+    let status: OpinionStatus
+    let slot: OpinionSlot
+    let hip: Hip
+    @State private var working = false
+
+    var body: some View {
+        Card {
+            HStack(spacing: 8) {
+                Image(systemName: symbol).foregroundStyle(color)
+                Text(status == .approved ? "Approved · buyers can see it" : status.label)
+                    .font(Theme.sans(15, .semibold))
+                    .foregroundStyle(Theme.ink)
+            }
+            if store.isStaff, status != .approved {
+                HStack(spacing: 10) {
+                    Button { review(true) } label: {
+                        Text("Approve").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(Theme.green)
+                    if status == .pending {
+                        Button { review(false) } label: {
+                            Text("Return").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(Theme.red)
+                    }
+                }
+                .disabled(working)
+                .padding(.top, 4)
+            } else if store.isStaff {
+                Button("Hide from buyers", role: .destructive) { review(false) }
+                    .disabled(working)
+            } else if status == .rejected {
+                Text("Edit and post it again to resubmit.")
+                    .font(Theme.sans(14)).foregroundStyle(Theme.slate)
+            }
+        }
+    }
+
+    private var symbol: String {
+        switch status {
+        case .pending: "clock.fill"
+        case .approved: "checkmark.seal.fill"
+        case .rejected: "arrow.uturn.backward.circle.fill"
+        }
+    }
+
+    private var color: Color {
+        switch status {
+        case .pending: Theme.orange
+        case .approved: Theme.green
+        case .rejected: Theme.red
+        }
+    }
+
+    private func review(_ approve: Bool) {
+        working = true
+        Task {
+            await store.review(slot, hip: hip, approve: approve)
+            working = false
         }
     }
 }

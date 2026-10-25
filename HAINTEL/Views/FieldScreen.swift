@@ -54,7 +54,7 @@ struct FieldScreen: View {
 
     private var editLabel: String {
         guard let slot = field.slot, let hip = store.currentHip else { return "Edit" }
-        return hip.opinionsIn.contains(slot) ? "Edit" : "Post"
+        return hip.opinionsIn.contains(slot) || hip.pendingSlots.contains(slot) ? "Edit" : "Post"
     }
 
     private var pager: some View {

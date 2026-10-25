@@ -167,11 +167,25 @@ final class SaleStore {
     func save(_ opinion: Opinion, slot: OpinionSlot, hip: Hip) async {
         await attempt {
             try await backend.save(opinion: opinion, saleID: sale.id, hip: hip.number, slot: slot)
-            opinions["\(hip.number)_\(slot.rawValue)"] = opinion
-            if let i = hips.firstIndex(where: { $0.number == hip.number }), !hips[i].opinionsIn.contains(slot) {
-                hips[i].opinionsIn.append(slot)
-            }
+            var pending = opinion
+            pending.status = .pending
+            opinions["\(hip.number)_\(slot.rawValue)"] = pending
+            if let i = hips.firstIndex(where: { $0.number == hip.number }) { hips[i].markPending(slot) }
         }
+    }
+
+    /// Staff only: approve an opinion so buyers can see it, or return it to its author.
+    func review(_ slot: OpinionSlot, hip: Hip, approve: Bool) async {
+        await attempt {
+            try await backend.review(approve: approve, saleID: sale.id, hip: hip.number, slot: slot)
+            opinions["\(hip.number)_\(slot.rawValue)"]?.status = approve ? .approved : .rejected
+            if let i = hips.firstIndex(where: { $0.number == hip.number }) { hips[i].markReviewed(slot, approved: approve) }
+        }
+    }
+
+    /// Opinions in the open sale waiting for staff approval, in catalog order.
+    var approvalQueue: [PendingOpinion] {
+        hips.flatMap { hip in hip.pendingSlots.map { PendingOpinion(hip: hip, slot: $0) } }
     }
 
     func buy(_ slot: OpinionSlot, hip: Hip) async {
@@ -284,6 +298,9 @@ extension SaleStore {
     /// One-line value for a home-screen button, and whether it is a paid opinion this user hasn't bought.
     func tileState(_ field: HipField, hip: Hip) -> (summary: String, locked: Bool) {
         if let slot = field.slot {
+            if hip.pendingSlots.contains(slot), isStaff || isAuthor(slot) {
+                return (isStaff ? "Needs approval" : "Waiting for approval", false)
+            }
             guard hip.opinionsIn.contains(slot) else { return ("Not posted yet", false) }
             guard canRead(slot, hip: hip) else { return ("Unlock · \(usd(sale.price(slot)))", true) }
             guard let opinion = opinion(slot, hip: hip) else { return ("Unlocked", false) }
@@ -310,4 +327,10 @@ extension SaleStore {
         let order = Grade.allCases
         return order.firstIndex(of: a)! >= order.firstIndex(of: b)! ? a : b
     }
+}
+
+struct PendingOpinion {
+    let hip: Hip
+    let slot: OpinionSlot
+    var key: String { "\(hip.number)_\(slot.rawValue)" }
 }

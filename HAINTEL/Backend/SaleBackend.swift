@@ -27,7 +27,10 @@ protocol SaleBackend {
     func upload(_ data: Data, kind: MediaKind, saleID: String, hip: Int) async throws -> URL
 
     func loadOpinion(saleID: String, hip: Int, slot: OpinionSlot) async throws -> Opinion?
+    /// The author posts or edits an opinion. It waits for HAINTEL approval before buyers see it.
     func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot) async throws
+    /// Staff approve (buyers can see it) or return (hidden) a posted opinion.
+    func review(approve: Bool, saleID: String, hip: Int, slot: OpinionSlot) async throws
 
     /// Staff only: everyone with an account, for picking a sale's vets and agents.
     func loadPeople() async throws -> [AppUser]
@@ -94,10 +97,16 @@ final class SampleBackend: SaleBackend {
 
     func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot) async throws {
         opinions["\(hip)_\(slot.rawValue)"] = opinion
-        if let i = hipsBySale[saleID]?.firstIndex(where: { $0.number == hip }),
-           hipsBySale[saleID]?[i].opinionsIn.contains(slot) == false {
-            hipsBySale[saleID]?[i].opinionsIn.append(slot)
-        }
+        guard let i = hipsBySale[saleID]?.firstIndex(where: { $0.number == hip }), var entry = hipsBySale[saleID]?[i] else { return }
+        entry.markPending(slot)
+        hipsBySale[saleID]?[i] = entry
+    }
+
+    func review(approve: Bool, saleID: String, hip: Int, slot: OpinionSlot) async throws {
+        opinions["\(hip)_\(slot.rawValue)"]?.status = approve ? .approved : .rejected
+        guard let i = hipsBySale[saleID]?.firstIndex(where: { $0.number == hip }), var entry = hipsBySale[saleID]?[i] else { return }
+        entry.markReviewed(slot, approved: approve)
+        hipsBySale[saleID]?[i] = entry
     }
 
     func loadPeople() async throws -> [AppUser] { people }

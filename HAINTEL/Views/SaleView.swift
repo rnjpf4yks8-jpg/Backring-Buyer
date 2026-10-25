@@ -7,6 +7,7 @@ struct SaleView: View {
     @Binding var path: [Route]
     @State private var addingHip = false
     @State private var editingPanel = false
+    @State private var showApprovals = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,6 +26,11 @@ struct SaleView: View {
             ToolbarItem(placement: .principal) { SaleSwitcher(path: $path) }
             if store.isStaff {
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button { showApprovals = true } label: {
+                        Image(systemName: store.approvalQueue.isEmpty ? "checkmark.seal" : "checkmark.seal.fill")
+                            .foregroundStyle(store.approvalQueue.isEmpty ? .white : Theme.amber)
+                    }
+                    .accessibilityLabel("Approvals, \(store.approvalQueue.count) waiting")
                     Button { editingPanel = true } label: {
                         Image(systemName: "person.2").foregroundStyle(.white)
                     }
@@ -41,6 +47,7 @@ struct SaleView: View {
         .toolbarColorScheme(.dark, for: .navigationBar)
         .task(id: saleID) { await store.open(saleID: saleID) }
         .sheet(isPresented: $editingPanel) { PanelSheet() }
+        .sheet(isPresented: $showApprovals) { ApprovalsSheet(path: $path) }
         .sheet(isPresented: $addingHip) {
             EditSheet(field: .hipNumber, hip: Hip(number: (store.hips.last?.number ?? 0) + 1), isNew: true)
         }

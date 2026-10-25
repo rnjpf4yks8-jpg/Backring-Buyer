@@ -96,11 +96,24 @@ final class FirebaseBackend: SaleBackend {
         return snap.exists ? try snap.data(as: Opinion.self) : nil
     }
 
-    /// Writes the opinion and marks it as posted on the hip, in one batch.
+    /// Writes the opinion as pending and moves it to the hip's approval queue, in one batch.
     func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot) async throws {
+        var pending = opinion
+        pending.status = .pending
         let batch = db.batch()
-        try batch.setData(from: opinion, forDocument: opinionRef(saleID, hip, slot))
-        batch.updateData(["opinionsIn": FieldValue.arrayUnion([slot.rawValue])],
+        try batch.setData(from: pending, forDocument: opinionRef(saleID, hip, slot))
+        batch.updateData(["opinionsIn": FieldValue.arrayRemove([slot.rawValue]),
+                          "opinionsPending": FieldValue.arrayUnion([slot.rawValue])],
+                         forDocument: hipsRef(saleID).document(String(hip)))
+        try await batch.commit()
+    }
+
+    func review(approve: Bool, saleID: String, hip: Int, slot: OpinionSlot) async throws {
+        let batch = db.batch()
+        batch.updateData(["status": (approve ? OpinionStatus.approved : .rejected).rawValue],
+                         forDocument: opinionRef(saleID, hip, slot))
+        batch.updateData(["opinionsPending": FieldValue.arrayRemove([slot.rawValue]),
+                          "opinionsIn": approve ? FieldValue.arrayUnion([slot.rawValue]) : FieldValue.arrayRemove([slot.rawValue])],
                          forDocument: hipsRef(saleID).document(String(hip)))
         try await batch.commit()
     }

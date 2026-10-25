@@ -3,9 +3,10 @@ rules_version = '2';
 // Who can do what:
 //   anyone        reads sales and hips (catalog data)
 //   staff         write sales, hips, user roles
-//   panel member  (the sale's vet1/vet2/bs1/bs2) writes only their own opinion,
-//                 and may mark it posted on the hip (opinionsIn)
-//   buyer         reads an opinion only after buying it
+//   panel member  (the sale's vet1/vet2/bs1/bs2) writes only their own opinion, always as
+//                 pending, and may move only their own slot into opinionsPending / out of opinionsIn
+//   staff         approve opinions (status approved, slot moves to opinionsIn)
+//   buyer         reads an opinion only after buying it, and only once it's approved
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
@@ -16,6 +17,26 @@ service cloud.firestore {
     function isAuthor(saleId, slot) { return signedIn() && panelUid(saleId, slot) == request.auth.uid; }
     function isPanelMember(saleId) {
       return isAuthor(saleId, 'vet1') || isAuthor(saleId, 'vet2') || isAuthor(saleId, 'bs1') || isAuthor(saleId, 'bs2');
+    }
+    // Every slot in `changed` belongs to the signed-in panel member.
+    function onlyOwnSlots(saleId, changed) {
+      return (!changed.hasAny(['vet1']) || isAuthor(saleId, 'vet1'))
+        && (!changed.hasAny(['vet2']) || isAuthor(saleId, 'vet2'))
+        && (!changed.hasAny(['bs1']) || isAuthor(saleId, 'bs1'))
+        && (!changed.hasAny(['bs2']) || isAuthor(saleId, 'bs2'));
+    }
+    // A panel member posting: their slot leaves opinionsIn (never joins it) and joins opinionsPending.
+    function panelPostUpdate(saleId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let inBefore = before.get('opinionsIn', []).toSet();
+      let inAfter = after.get('opinionsIn', []).toSet();
+      let pendingBefore = before.get('opinionsPending', []).toSet();
+      let pendingAfter = after.get('opinionsPending', []).toSet();
+      return after.diff(before).affectedKeys().hasOnly(['opinionsIn', 'opinionsPending'])
+        && inAfter.difference(inBefore).size() == 0
+        && onlyOwnSlots(saleId, inBefore.difference(inAfter))
+        && onlyOwnSlots(saleId, pendingAfter.difference(pendingBefore).union(pendingBefore.difference(pendingAfter)));
     }
 
     match /config/{doc} {
@@ -45,13 +66,14 @@ service cloud.firestore {
       match /hips/{hipId} {
         allow read: if true;
         allow create, delete: if isStaff();
-        allow update: if isStaff()
-          || (isPanelMember(saleId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opinionsIn']));
+        allow update: if isStaff() || (isPanelMember(saleId) && panelPostUpdate(saleId));
 
         match /opinions/{slot} {
           allow read: if isStaff() || isAuthor(saleId, slot)
-            || (signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)/purchases/$(saleId + '_' + hipId + '_' + slot)));
-          allow write: if isStaff() || isAuthor(saleId, slot);
+            || (signedIn() && resource.data.get('status', 'approved') == 'approved'
+                && exists(/databases/$(database)/documents/users/$(request.auth.uid)/purchases/$(saleId + '_' + hipId + '_' + slot)));
+          allow write: if isStaff()
+            || (isAuthor(saleId, slot) && request.resource.data.get('status', '') == 'pending');
         }
       }
     }

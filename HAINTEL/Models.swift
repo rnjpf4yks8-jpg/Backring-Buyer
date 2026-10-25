@@ -91,6 +91,22 @@ struct Hip: Codable, Identifiable, Hashable {
     var physical: HorsePhysical?
     /// Which paid opinions have been posted. Lets buyers see what's for sale without reading the opinion.
     var opinionsIn: [OpinionSlot] = []
+    /// Opinions posted but not yet approved by HAINTEL. Buyers don't see these.
+    var opinionsPending: [OpinionSlot]? = nil
+
+    var pendingSlots: [OpinionSlot] { opinionsPending ?? [] }
+
+    /// An opinion was posted or edited: hide it from buyers until it's approved.
+    mutating func markPending(_ slot: OpinionSlot) {
+        opinionsIn.removeAll { $0 == slot }
+        if !pendingSlots.contains(slot) { opinionsPending = pendingSlots + [slot] }
+    }
+
+    mutating func markReviewed(_ slot: OpinionSlot, approved: Bool) {
+        opinionsPending = pendingSlots.filter { $0 != slot }
+        opinionsIn.removeAll { $0 == slot }
+        if approved { opinionsIn.append(slot) }
+    }
 
     var title: String { "\(color) \(sex)" }
     var cross: String { pedigree.sire.isEmpty ? "Pedigree not entered" : "\(pedigree.sire) — \(pedigree.dam)" }
@@ -123,6 +139,22 @@ struct Opinion: Codable, Hashable {
     var rank: Int?
     var outOf: Int?
     var score: Double?
+    /// HAINTEL approves each opinion before buyers can see it. Missing means approved (posted before reviews began).
+    var status: OpinionStatus?
+
+    var reviewStatus: OpinionStatus { status ?? .approved }
+}
+
+enum OpinionStatus: String, Codable, Hashable {
+    case pending, approved, rejected
+
+    var label: String {
+        switch self {
+        case .pending: "Waiting for HAINTEL approval"
+        case .approved: "Approved"
+        case .rejected: "Returned by HAINTEL"
+        }
+    }
 }
 
 /// Someone on the sale's opinion panel: the two vets and two bloodstock agents Sandeep picks.
