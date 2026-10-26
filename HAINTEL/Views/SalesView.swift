@@ -2,9 +2,11 @@ import SwiftUI
 
 /// The app's one navigation stack: the sales list, then a sale's hip screen, then one of its 10 buttons.
 struct RootView: View {
+    @Environment(SaleStore.self) private var store
     @State private var path: [Route] = []
 
     var body: some View {
+        @Bindable var store = store
         NavigationStack(path: $path) {
             SalesIndexView { path = [.sale($0)] }
                 .navigationDestination(for: Route.self) { route in
@@ -14,6 +16,8 @@ struct RootView: View {
                     }
                 }
         }
+        // The administrator's requests and accounts; also opened by tapping a request notification.
+        .sheet(isPresented: $store.showPeople) { PeopleView() }
     }
 }
 
@@ -56,6 +60,24 @@ struct SalesIndexView: View {
                         .foregroundStyle(.white)
                 }
                 .accessibilityLabel("Account")
+            }
+            if store.isAdmin {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { store.showPeople = true } label: {
+                        Image(systemName: "person.2.badge.gearshape")
+                            .foregroundStyle(store.roleRequests.isEmpty ? .white : Theme.amber)
+                            .overlay(alignment: .topTrailing) {
+                                if !store.roleRequests.isEmpty {
+                                    Text("\(store.roleRequests.count)")
+                                        .font(.caption2.bold()).foregroundStyle(.white)
+                                        .padding(.horizontal, 5).padding(.vertical, 1)
+                                        .background(Theme.red, in: Capsule())
+                                        .offset(x: 10, y: -8)
+                                }
+                            }
+                    }
+                    .accessibilityLabel("People and requests, \(store.roleRequests.count) waiting")
+                }
             }
             ToolbarItem(placement: .principal) {
                 HStack(spacing: 8) {

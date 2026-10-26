@@ -21,8 +21,13 @@ enum SampleData {
 
     /// People you can switch between in demo mode.
     static let people: [AppUser] = [
+        AppUser(uid: "demo-admin", name: "Demo administrator", role: .admin, email: "owner@example.com"),
         AppUser(uid: "demo-buyer", name: "Demo buyer", role: .buyer),
         AppUser(uid: "demo-staff", name: "T. Nguyen", role: .staff),
+        AppUser(uid: "demo-ask-vet", name: "Dr. P. Lindqvist", role: .buyer, email: "lindqvist@example.com",
+                requestedRole: .vet, requestedAt: Date().addingTimeInterval(-3600)),
+        AppUser(uid: "demo-ask-staff", name: "R. Okafor", role: .buyer, email: "okafor@example.com",
+                requestedRole: .staff, requestedAt: Date().addingTimeInterval(-600)),
         AppUser(uid: "demo-vet1", name: "Dr. A. Reyes", role: .vet),
         AppUser(uid: "demo-vet2", name: "Dr. K. Malone", role: .vet),
         AppUser(uid: "demo-bs1", name: "J. Whitaker", role: .agent),

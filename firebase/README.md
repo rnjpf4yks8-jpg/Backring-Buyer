@@ -21,18 +21,29 @@ Until these steps are done the app runs in demo mode on sample data.
    export GOOGLE_APPLICATION_CREDENTIALS=/path/to/that-key.json
    ```
 
-## Roles and the staff code
-When creating an account, people pick **Buyer**, **Vet**, **Bloodstock agent** or **Staff**. Vets and agents
-still post opinions only once staff add them to a sale on the Panel screen. **Staff** (full administrator
-rights: sales, hips, grades, panels, opinion approvals) needs the staff code, which is checked on the
-server. Anyone already signed in can also enter the code on the Account screen and tap **Become staff**.
-After 10 wrong codes an account is locked out of that.
+## Roles, approvals and the administrator
+Everyone signs up as a **buyer**. People who pick **Vet**, **Bloodstock agent** or **Staff** (at sign-up,
+or later on the Account screen) send a request; they use the app as a buyer until it's approved.
+The **administrator** gets a push notification for each request and approves or declines it on the
+**People** screen (the people button at the top of the sales list, or Account → People and requests).
+The person gets a push notification with the decision. The administrator can also change anyone's
+role (Buyer takes access away) and **delete accounts** (sign-in, profile, purchases and panel spots).
 
-Set or change the code (at least 6 characters, keep it private), then deploy:
+Staff can do everything with sales, hips, grades, panels and opinion approvals; putting a buyer on
+a panel still makes them a vet or agent. Only the administrator handles role requests and accounts.
+
+**Becoming the administrator (once):** sign in, open Account, enter the administrator code under
+Owner setup and tap Become administrator. This works only while there is no administrator yet; after
+that, the administrator can make others administrators on the People screen. Set the code (at least 6
+characters, keep it private) with `firebase functions:secrets:set STAFF_CODE`.
+
+**Push notifications** need an Apple push key (.p8) from developer.apple.com → Keys, saved as secrets:
 ```
-firebase functions:secrets:set STAFF_CODE
-firebase deploy --only functions,firestore:rules
+firebase functions:secrets:set APNS_KEY --data-file AuthKey_XXXXXXXXXX.p8
+firebase functions:secrets:set APNS_KEY_ID
+firebase deploy --only functions,firestore:rules,storage
 ```
+The app's App ID also needs the Push Notifications capability, with a refreshed provisioning profile.
 
 ## AI conformation check (sale walk video)
 Staff can ask the AI for a C grade from a hip's sale walk video: edit the hip (Hip Number button),

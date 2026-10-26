@@ -2,8 +2,9 @@ rules_version = '2';
 
 // Who can do what:
 //   anyone        reads sales and hips (catalog data)
-//   staff         write sales, hips, user roles (staff comes from the staff code, see functions/staff.js)
-//   anyone        signs up as buyer, vet or bloodstock agent and may switch between those
+//   administrator everything staff do, plus approving role requests and deleting accounts
+//   staff         write sales, hips; make buyers vets or agents by putting them on a panel
+//   anyone        signs up as a buyer and may ask to be a vet, bloodstock agent or staff
 //   panel member  (the sale's vet1/vet2/bs1/bs2) writes only their own opinion, always as
 //                 pending, and may move only their own slot into opinionsPending / out of opinionsIn
 //   staff         approve opinions (status approved, slot moves to opinionsIn)
@@ -12,9 +13,14 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
-    function isStaff() { return signedIn() && profile().role == 'staff'; }
+    // The administrator can do everything staff can, plus approve role requests and delete accounts.
+    function isStaff() { return signedIn() && profile().role in ['staff', 'admin']; }
+    function isAdmin() { return signedIn() && profile().role == 'admin'; }
     function saleDoc(saleId) { return get(/databases/$(database)/documents/sales/$(saleId)).data; }
     function panelUid(saleId, slot) { return saleDoc(saleId).panel.get(slot, {}).get('uid', ''); }
+    function validRequest(data) {
+      return !('requestedRole' in data) || data.requestedRole in ['vet', 'agent', 'staff'];
+    }
     function isAuthor(saleId, slot) { return signedIn() && panelUid(saleId, slot) == request.auth.uid; }
     function isPanelMember(saleId) {
       return isAuthor(saleId, 'vet1') || isAuthor(saleId, 'vet2') || isAuthor(saleId, 'bs1') || isAuthor(saleId, 'bs2');
@@ -47,17 +53,29 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isStaff());
-      // Anyone can create their own profile as a buyer, vet or bloodstock agent, and switch between those
-      // later. Vets and agents still post only once staff add them to a sale's panel. Staff is never
-      // self-assigned here: the claimStaff Cloud Function grants it for the right staff code.
+      // Everyone signs up as a buyer. Asking to be a vet, bloodstock agent or staff adds requestedRole,
+      // and the administrator approves (sets role and lastDecision) or declines it.
       allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.role in ['buyer', 'vet', 'agent'];
-      allow update: if isStaff()
+        && request.resource.data.role == 'buyer'
+        && validRequest(request.resource.data)
+        && !('lastDecision' in request.resource.data);
+      allow update: if isAdmin()
+        // A person asks for, changes or cancels their own role request; never their role itself.
         || (signedIn() && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['requestedRole', 'requestedAt'])
+            && validRequest(request.resource.data))
+        // Staff putting a buyer on a sale panel makes them a vet or agent.
+        || (isStaff() && request.auth.uid != uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
             && resource.data.role in ['buyer', 'vet', 'agent']
-            && request.resource.data.role in ['buyer', 'vet', 'agent']
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']));
-      allow delete: if isStaff();
+            && request.resource.data.role in ['buyer', 'vet', 'agent']);
+      // Deleting a whole account (sign-in included) goes through the deleteAccount Cloud Function.
+      allow delete: if isAdmin();
+
+      // Phones this person gets push notifications on.
+      match /devices/{token} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
 
       match /purchases/{purchaseId} {
         allow read: if signedIn() && request.auth.uid == uid;

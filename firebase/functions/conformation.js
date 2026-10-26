@@ -150,7 +150,7 @@ exports.suggestConformation = onCall(
     if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in as staff first.');
     const db = admin.firestore();
     const profile = await db.doc(`users/${request.auth.uid}`).get();
-    if (profile.get('role') !== 'staff') throw new HttpsError('permission-denied', 'Only staff can grade hips.');
+    if (!['staff', 'admin'].includes(profile.get('role'))) throw new HttpsError('permission-denied', 'Only staff can grade hips.');
 
     const { saleId, hip: hipNumber } = request.data || {};
     if (typeof saleId !== 'string' || !/^[\w-]+$/.test(saleId) || !Number.isInteger(hipNumber) || hipNumber < 1) {

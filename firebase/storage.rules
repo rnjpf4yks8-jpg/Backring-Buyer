@@ -6,7 +6,7 @@ service firebase.storage {
     match /sales/{saleId}/hips/{hip}/{file} {
       allow read: if true;
       allow write: if request.auth != null
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'staff'
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['staff', 'admin']
         && request.resource.size < 500 * 1024 * 1024;
     }
   }

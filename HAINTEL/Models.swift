@@ -205,6 +205,8 @@ struct Sale: Codable, Hashable {
 
 enum Role: String, Codable, Hashable {
     case buyer, staff, agent, vet
+    /// The owner: everything staff can do, plus approving role requests and deleting accounts.
+    case admin
 
     var label: String {
         switch self {
@@ -212,8 +214,12 @@ enum Role: String, Codable, Hashable {
         case .staff: "Backring Buyer staff"
         case .agent: "Bloodstock agent"
         case .vet: "Vet"
+        case .admin: "Administrator"
         }
     }
+
+    /// Roles people can ask for. The administrator approves them.
+    static let requestable: [Role] = [.vet, .agent, .staff]
 }
 
 struct AppUser: Codable, Hashable {
@@ -222,6 +228,10 @@ struct AppUser: Codable, Hashable {
     var role: Role
     /// Saved when the account is created, so staff can tell people apart on the Panel screen.
     var email: String? = nil
+    /// A vet, bloodstock agent or staff role this person asked for. They stay a buyer until the
+    /// administrator approves it.
+    var requestedRole: Role? = nil
+    var requestedAt: Date? = nil
 }
 
 /// Screens pushed on the app's navigation stack: a sale's hip screen, then one of its 10 buttons.

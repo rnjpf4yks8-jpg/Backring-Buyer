@@ -28,6 +28,10 @@ final class SaleStore {
     var people: [AppUser] = []
     var isLoading = true
     var errorMessage: String?
+    /// The administrator's People screen (requests and accounts) is open.
+    var showPeople = false
+    /// This phone's push notification token, once Apple hands it over.
+    var deviceToken: String?
 
     init(backend: SaleBackend) {
         self.backend = backend
@@ -50,6 +54,11 @@ final class SaleStore {
             user = try await backend.currentUser()
             try await reloadSales()
             try await reloadPurchases()
+        }
+        await afterSignIn()
+        if AppDelegate.openedFromNotification {
+            AppDelegate.openedFromNotification = false
+            if isAdmin { showPeople = true }
         }
         if !isDemo { await payments.loadProducts() }
         await loadHipCounts()
@@ -109,40 +118,48 @@ final class SaleStore {
             user = try await backend.signIn(email: email, password: password)
             try await reloadPurchases()
         }
+        await afterSignIn()
     }
 
-    /// Staff sign-up makes a buyer account first, then upgrades it with the staff code. If the code is
-    /// wrong the buyer account stays, and the code can be tried again on the Account screen.
-    func createAccount(name: String, email: String, password: String, role: Role, staffCode: String = "") async {
+    /// Everyone starts as a buyer. Picking vet, bloodstock agent or staff sends a request the
+    /// administrator approves; until then the person uses the app as a buyer.
+    func createAccount(name: String, email: String, password: String, role: Role) async {
         await attempt {
             user = try await backend.createAccount(name: name, email: email, password: password, role: role)
             try await reloadPurchases()
         }
-        guard role == .staff, user != nil else { return }
-        if !(await claimStaff(code: staffCode)) {
-            errorMessage = (errorMessage ?? "That staff code didn’t work.")
-                + " Your account was created as a buyer; enter the staff code below to try again."
-        }
+        await afterSignIn()
     }
 
-    /// Makes the signed-in user staff if the code is right. Returns whether it worked.
-    func claimStaff(code: String) async -> Bool {
+    /// Picks up a role change (an approval) made since the app opened.
+    func refreshUser() async {
+        guard !isDemo, user != nil else { return }
+        await attempt { user = try await backend.currentUser() }
+        if isAdmin { await loadPeople() }
+    }
+
+    /// The owner, once: makes this account the administrator if the code is right. Returns whether it worked.
+    func claimAdmin(code: String) async -> Bool {
         var granted = false
         await attempt {
-            try await backend.claimStaff(code: code.trimmingCharacters(in: .whitespacesAndNewlines))
-            user?.role = .staff
+            try await backend.claimAdmin(code: code.trimmingCharacters(in: .whitespacesAndNewlines))
+            user?.role = .admin
+            user?.requestedRole = nil
             granted = true
         }
+        if granted { await afterSignIn() }
         return granted
     }
 
-    /// Buyers, vets and bloodstock agents can switch between those roles themselves.
-    func changeOwnRole(to role: Role) async {
-        guard let uid = user?.uid, role != .staff, user?.role != .staff, role != user?.role else { return }
+    /// Ask for a vet, bloodstock agent or staff role, or cancel the request (nil).
+    func requestRole(_ role: Role?) async {
+        guard let uid = user?.uid else { return }
         await attempt {
-            try await backend.setRole(role, uid: uid)
-            user?.role = role
+            try await backend.requestRole(role, uid: uid)
+            user?.requestedRole = role
+            user?.requestedAt = role == nil ? nil : Date()
         }
+        if role != nil { await enableNotifications() }
     }
 
     /// Demo mode only: switch between the sample people without a password.
@@ -151,19 +168,106 @@ final class SaleStore {
             user = person
             try await reloadPurchases()
         }
+        if isAdmin { await loadPeople() }
     }
 
     func signOut() async {
+        if let token = deviceToken, let uid = user?.uid {
+            try? await backend.removeDevice(token: token, uid: uid)
+        }
         await attempt {
             try backend.signOut()
             user = nil
+            people = []
             try await reloadPurchases()
         }
     }
 
+    private func afterSignIn() async {
+        guard user != nil else { return }
+        if isAdmin { await loadPeople() }
+        if isAdmin || user?.requestedRole != nil { await enableNotifications() }
+        await saveDeviceToken()
+    }
+
+    // MARK: Administrator: requests and accounts
+
+    /// People waiting for a role, oldest first.
+    var roleRequests: [AppUser] {
+        people.filter { $0.requestedRole != nil }
+            .sorted { ($0.requestedAt ?? .distantPast) < ($1.requestedAt ?? .distantPast) }
+    }
+
+    func approve(_ person: AppUser) async { await decide(person, approve: true) }
+    func decline(_ person: AppUser) async { await decide(person, approve: false) }
+
+    private func decide(_ person: AppUser, approve: Bool) async {
+        guard isAdmin, let role = person.requestedRole else { return }
+        await attempt {
+            try await backend.decide(uid: person.uid, role: role, approve: approve)
+            if let i = people.firstIndex(where: { $0.uid == person.uid }) {
+                if approve { people[i].role = role }
+                people[i].requestedRole = nil
+                people[i].requestedAt = nil
+            }
+        }
+    }
+
+    /// Administrator: sets anyone's role directly, including staff and administrator.
+    func changeRole(of person: AppUser, to role: Role) async {
+        guard isAdmin, person.uid != user?.uid, role != person.role else { return }
+        await attempt {
+            try await backend.setRole(role, uid: person.uid)
+            if let i = people.firstIndex(where: { $0.uid == person.uid }) { people[i].role = role }
+        }
+    }
+
+    /// Administrator: deletes the account for good. Returns whether it worked.
+    func deleteAccount(_ person: AppUser) async -> Bool {
+        guard isAdmin, person.uid != user?.uid else { return false }
+        var deleted = false
+        await attempt {
+            try await backend.deleteAccount(uid: person.uid)
+            people.removeAll { $0.uid == person.uid }
+            sale.panel = sale.panel.filter { $0.value.uid != person.uid }
+            deleted = true
+        }
+        return deleted
+    }
+
+    // MARK: Push notifications
+
+    /// Asks once for permission to send notifications (iOS remembers the answer), then registers with Apple.
+    func enableNotifications() async {
+        guard !isDemo else { return }
+        await PushNotifications.enable()
+    }
+
+    /// Apple handed the phone's token to the app (see Push.swift).
+    func didReceive(deviceToken token: String) async {
+        deviceToken = token
+        await saveDeviceToken()
+    }
+
+    private func saveDeviceToken() async {
+        guard !isDemo, let token = deviceToken, let uid = user?.uid else { return }
+        try? await backend.saveDevice(token: token, uid: uid)
+    }
+
+    /// A notification was tapped: the administrator goes to the requests; anyone else gets their new role.
+    func openedNotification() async {
+        // While the app is still starting up, start() picks this up instead.
+        guard !isLoading else { return }
+        AppDelegate.openedFromNotification = false
+        await refreshUser()
+        if isAdmin { showPeople = true }
+    }
+
     // MARK: Permissions
 
-    var isStaff: Bool { user?.role == .staff }
+    /// Staff rights. The administrator has them too.
+    var isStaff: Bool { user?.role == .staff || user?.role == .admin }
+    var isAdmin: Bool { user?.role == .admin }
 
     func isAuthor(_ slot: OpinionSlot) -> Bool {
         guard let user else { return false }

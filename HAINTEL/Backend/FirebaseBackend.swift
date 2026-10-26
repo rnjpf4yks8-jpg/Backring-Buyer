@@ -32,11 +32,13 @@ final class FirebaseBackend: SaleBackend {
         return user
     }
 
-    /// New accounts are buyers, vets or bloodstock agents (security rules allow only those). Staff
-    /// accounts start as buyers and are upgraded by `claimStaff`.
+    /// Every new account is a buyer (security rules allow only that). Asking to be a vet, bloodstock agent
+    /// or staff saves requestedRole; the administrator gets a push notification and approves it.
     func createAccount(name: String, email: String, password: String, role: Role) async throws -> AppUser {
         let result = try await Auth.auth().createUser(withEmail: email, password: password)
-        let user = AppUser(uid: result.user.uid, name: name, role: role == .staff ? .buyer : role, email: email)
+        let asked = Role.requestable.contains(role) ? role : nil
+        let user = AppUser(uid: result.user.uid, name: name, role: .buyer, email: email,
+                           requestedRole: asked, requestedAt: asked == nil ? nil : Date())
         try db.collection("users").document(user.uid).setData(from: user)
         return user
     }
@@ -98,9 +100,44 @@ final class FirebaseBackend: SaleBackend {
     }
 
     /// The claimStaff Cloud Function (firebase/functions/staff.js) checks the code and sets the role.
-    func claimStaff(code: String) async throws {
+    func claimAdmin(code: String) async throws {
         struct Granted: Decodable { var role: String }
         let _: Granted = try await callFunction("claimStaff", ["code": code], timeout: 60)
+    }
+
+    func requestRole(_ role: Role?, uid: String) async throws {
+        let update: [String: Any] = if let role {
+            ["requestedRole": role.rawValue, "requestedAt": FieldValue.serverTimestamp()]
+        } else {
+            ["requestedRole": FieldValue.delete(), "requestedAt": FieldValue.delete()]
+        }
+        try await db.collection("users").document(uid).updateData(update)
+    }
+
+    /// The onPersonChanged Cloud Function sees lastDecision change and notifies the person.
+    func decide(uid: String, role: Role, approve: Bool) async throws {
+        var update: [String: Any] = [
+            "requestedRole": FieldValue.delete(),
+            "requestedAt": FieldValue.delete(),
+            "lastDecision": ["role": role.rawValue, "approved": approve, "at": FieldValue.serverTimestamp()],
+        ]
+        if approve { update["role"] = role.rawValue }
+        try await db.collection("users").document(uid).updateData(update)
+    }
+
+    /// The deleteAccount Cloud Function (firebase/functions/people.js) also removes the sign-in.
+    func deleteAccount(uid: String) async throws {
+        struct Deleted: Decodable { var deleted: Bool }
+        let _: Deleted = try await callFunction("deleteAccount", ["uid": uid], timeout: 60)
+    }
+
+    func saveDevice(token: String, uid: String) async throws {
+        try await db.collection("users").document(uid).collection("devices").document(token)
+            .setData(["platform": "ios", "updatedAt": FieldValue.serverTimestamp()])
+    }
+
+    func removeDevice(token: String, uid: String) async throws {
+        try await db.collection("users").document(uid).collection("devices").document(token).delete()
     }
 
     /// Calls a Firebase callable Cloud Function over HTTPS, signed in as the current user.

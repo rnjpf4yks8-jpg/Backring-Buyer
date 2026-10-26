@@ -29,10 +29,19 @@ protocol SaleBackend {
 
     func currentUser() async throws -> AppUser?
     func signIn(email: String, password: String) async throws -> AppUser
-    /// New accounts are a buyer, vet or bloodstock agent. Staff comes only from `claimStaff`.
+    /// New accounts are buyers. Any other `role` is saved as a request for the administrator to approve.
     func createAccount(name: String, email: String, password: String, role: Role) async throws -> AppUser
-    /// Makes the signed-in user staff if `code` is the staff code (checked on the server).
-    func claimStaff(code: String) async throws
+    /// Makes the signed-in user the administrator if `code` is right and there's no administrator yet.
+    func claimAdmin(code: String) async throws
+    /// Asks for a vet, agent or staff role, or cancels the request (nil).
+    func requestRole(_ role: Role?, uid: String) async throws
+    /// Administrator: approves (gives them the role they asked for) or declines a request.
+    func decide(uid: String, role: Role, approve: Bool) async throws
+    /// Administrator: deletes a person's sign-in and profile and takes them off every panel.
+    func deleteAccount(uid: String) async throws
+    /// The phone's push notification token for this person (removed on sign-out).
+    func saveDevice(token: String, uid: String) async throws
+    func removeDevice(token: String, uid: String) async throws
     func signOut() throws
 
     func loadSales() async throws -> [Sale]
@@ -86,9 +95,32 @@ final class SampleBackend: SaleBackend {
         throw BackendError(message: "Demo mode can't create accounts. Pick a sample person instead.")
     }
 
-    func claimStaff(code: String) async throws {
-        throw BackendError(message: "Demo mode has no staff codes. Pick the sample staff person instead.")
+    func claimAdmin(code: String) async throws {
+        throw BackendError(message: "Demo mode has no administrator code. Pick the sample administrator instead.")
     }
+
+    func requestRole(_ role: Role?, uid: String) async throws {
+        guard let i = people.firstIndex(where: { $0.uid == uid }) else { return }
+        people[i].requestedRole = role
+        people[i].requestedAt = role == nil ? nil : Date()
+    }
+
+    func decide(uid: String, role: Role, approve: Bool) async throws {
+        guard let i = people.firstIndex(where: { $0.uid == uid }) else { return }
+        if approve { people[i].role = role }
+        people[i].requestedRole = nil
+        people[i].requestedAt = nil
+    }
+
+    func deleteAccount(uid: String) async throws {
+        people.removeAll { $0.uid == uid }
+        for i in sales.indices {
+            sales[i].panel = sales[i].panel.filter { $0.value.uid != uid }
+        }
+    }
+
+    func saveDevice(token: String, uid: String) async throws {}
+    func removeDevice(token: String, uid: String) async throws {}
 
     func signOut() throws {}
 
