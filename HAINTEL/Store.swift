@@ -235,6 +235,42 @@ final class SaleStore {
         return deleted
     }
 
+    // MARK: Attachments
+
+    /// Downloaded attachments, so opening one twice doesn't download it twice.
+    @ObservationIgnored private var attachmentFiles: [String: URL] = [:]
+
+    func uploadAttachment(_ data: Data, name: String, contentType: String,
+                          to folder: AttachmentFolder) async throws -> Attachment {
+        guard let uid = user?.uid else { throw BackendError(message: "Sign in first.") }
+        return try await backend.uploadAttachment(data, name: name, contentType: contentType, to: folder, author: uid)
+    }
+
+    /// A local copy of the attachment for previewing, named the way people see it.
+    func localFile(for attachment: Attachment) async throws -> URL {
+        if let url = attachmentFiles[attachment.path], FileManager.default.fileExists(atPath: url.path) { return url }
+        let data = try await backend.attachmentData(attachment)
+        var name = attachment.name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        let ext = attachment.isPDF ? "pdf" : "jpg"
+        if !name.lowercased().hasSuffix(".\(ext)") { name += ".\(ext)" }
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Attachments", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let url = folder.appendingPathComponent(name)
+        try data.write(to: url, options: .completeFileProtection)
+        attachmentFiles[attachment.path] = url
+        return url
+    }
+
+    /// Removes files from storage (attachments taken off before saving, or uploads that were cancelled).
+    func deleteAttachments(_ attachments: [Attachment]) async {
+        for attachment in attachments {
+            try? await backend.deleteAttachment(attachment)
+            attachmentFiles[attachment.path] = nil
+        }
+    }
+
     // MARK: Push notifications
 
     /// Asks once for permission to send notifications (iOS remembers the answer), then registers with Apple.

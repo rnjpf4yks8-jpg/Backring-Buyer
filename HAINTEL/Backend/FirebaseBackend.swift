@@ -163,6 +163,39 @@ final class FirebaseBackend: SaleBackend {
             : "The server couldn’t do that right now (error \(status)). Try again in a minute.")
     }
 
+    // MARK: Attachments
+
+    /// Stored with the uploader's uid and a random file name. The app never shares download links:
+    /// files are fetched through Storage, so storage.rules decide who can open each one.
+    func uploadAttachment(_ data: Data, name: String, contentType: String, to folder: AttachmentFolder,
+                          author: String) async throws -> Attachment {
+        let ext = contentType == "application/pdf" ? "pdf" : "jpg"
+        let path = "\(folder.path)/\(UUID().uuidString).\(ext)"
+        let metadata = StorageMetadata()
+        metadata.contentType = contentType
+        metadata.customMetadata = ["authorUid": author, "name": name]
+        _ = try await storage.reference(withPath: path).putDataAsync(data, metadata: metadata)
+        return Attachment(name: name, path: path, contentType: contentType, size: data.count)
+    }
+
+    func attachmentData(_ attachment: Attachment) async throws -> Data {
+        do {
+            return try await storage.reference(withPath: attachment.path).data(maxSize: 30 * 1024 * 1024)
+        } catch let error as NSError where error.domain == StorageErrorDomain
+                    && error.code == StorageErrorCode.unauthorized.rawValue {
+            throw BackendError(message: "You don’t have access to this file.")
+        }
+    }
+
+    func deleteAttachment(_ attachment: Attachment) async throws {
+        do {
+            try await storage.reference(withPath: attachment.path).delete()
+        } catch let error as NSError where error.domain == StorageErrorDomain
+                    && error.code == StorageErrorCode.objectNotFound.rawValue {
+            // Already gone.
+        }
+    }
+
     // MARK: Opinions
 
     func loadOpinion(saleID: String, hip: Int, slot: OpinionSlot) async throws -> Opinion? {

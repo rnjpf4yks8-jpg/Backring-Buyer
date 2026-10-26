@@ -26,6 +26,10 @@ struct EditSheet: View {
     @State private var suggestion: ConformationSuggestion?
     @State private var suggesting = false
     @State private var suggestionProblem: String?
+    /// Files uploaded during this visit (removed again on Cancel) and the ones saved before it.
+    @State private var uploadedAttachments: [Attachment] = []
+    @State private var savedAttachments: [Attachment] = []
+    @State private var attachmentsBusy = false
 
     init(field: HipField, hip: Hip, isNew: Bool, slot: OpinionSlot? = nil) {
         self.field = field
@@ -40,6 +44,7 @@ struct EditSheet: View {
             ?? HorsePhysical(heightInches: 60, lengthInches: 60, measuredBy: "", date: today))
         _conformationText = State(initialValue: hip.conformationGrade.map(Hip.gradeText) ?? "")
         _pedigreeText = State(initialValue: hip.pedigreeGrade.map(Hip.gradeText) ?? "")
+        _savedAttachments = State(initialValue: field == .vetReport ? (hip.vetReport.attachments ?? []) : [])
     }
 
     var body: some View {
@@ -64,16 +69,25 @@ struct EditSheet: View {
             .navigationTitle(isNew ? "Add hip" : (slot?.title ?? "Edit \(field.title)"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        Task {
+                            await store.deleteAttachments(uploadedAttachments)
+                            dismiss()
+                        }
+                    }
+                    .disabled(attachmentsBusy)
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     if saving {
                         ProgressView()
                     } else {
                         Button(field.isOpinionGroup ? "Post" : "Save") { Task { await save() } }
-                            .disabled(uploading)
+                            .disabled(uploading || attachmentsBusy)
                     }
                 }
             }
+            .interactiveDismissDisabled(attachmentsBusy || !uploadedAttachments.isEmpty)
             .onAppear(perform: loadOpinion)
         }
     }
@@ -221,6 +235,12 @@ struct EditSheet: View {
             Section {
                 TextField("Filed in repository (date)", text: $draft.vetReport.filed)
             }
+            AttachmentEditor(
+                attachments: Binding(get: { draft.vetReport.attachments ?? [] },
+                                     set: { draft.vetReport.attachments = $0.isEmpty ? nil : $0 }),
+                uploaded: $uploadedAttachments, busy: $attachmentsBusy,
+                folder: .vetReport(saleID: store.sale.id, hip: original.number),
+                footer: "The repository report, radiographs or scope images, as PDF or photos. Anyone signed in can open them.")
         }
     }
 
@@ -317,6 +337,7 @@ struct EditSheet: View {
             Section("Opinion") {
                 TextField("What buyers should know", text: $opinion.notes, axis: .vertical).lineLimit(4...12)
             }
+            opinionAttachments
         }
     }
 
@@ -340,6 +361,20 @@ struct EditSheet: View {
             Section("Opinion") {
                 TextField("What buyers should know", text: $opinion.notes, axis: .vertical).lineLimit(4...12)
             }
+            opinionAttachments
+        }
+    }
+
+    /// The vet's or agent's own report files. Only the author posts here.
+    @ViewBuilder
+    private var opinionAttachments: some View {
+        if let slot {
+            AttachmentEditor(
+                attachments: Binding(get: { opinion.attachments ?? [] },
+                                     set: { opinion.attachments = $0.isEmpty ? nil : $0 }),
+                uploaded: $uploadedAttachments, busy: $attachmentsBusy,
+                folder: .opinion(saleID: store.sale.id, hip: original.number, slot: slot),
+                footer: "Your written report, radiographs or scope images, as PDF or photos. Buyers can open them once they’ve bought your opinion.")
         }
     }
 
@@ -366,6 +401,7 @@ struct EditSheet: View {
         guard let slot else { return }
         if let existing = store.opinion(slot, hip: original) {
             opinion = existing
+            savedAttachments = existing.attachments ?? []
         } else {
             opinion = slot.isVet
                 ? Opinion(date: today, basis: .repository, grade: .clean)
@@ -451,7 +487,14 @@ struct EditSheet: View {
             await store.save(draft, replacing: isNew ? nil : original.number)
         }
         saving = false
-        if store.errorMessage == nil { dismiss() } else { problem = store.errorMessage }
+        if store.errorMessage == nil {
+            // Files taken off this opinion or report are deleted once the change is saved.
+            let kept = Set(((field.isOpinionGroup ? opinion.attachments : draft.vetReport.attachments) ?? []).map(\.path))
+            await store.deleteAttachments(savedAttachments.filter { !kept.contains($0.path) })
+            dismiss()
+        } else {
+            problem = store.errorMessage
+        }
     }
 
     /// A grade typed by staff. Blank is valid and means not graded; otherwise 1 to `max` in half points.

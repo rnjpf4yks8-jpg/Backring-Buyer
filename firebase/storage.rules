@@ -1,13 +1,51 @@
 rules_version = '2';
 
-// Sale pictures and walk videos: anyone can view, only Backring Buyer staff upload.
+// Files in Storage. Rules may read at most two Firestore documents per check, so each rule below
+// stays within that (the uploader's uid is stored on each attachment as metadata, which costs nothing).
 service firebase.storage {
   match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+    function isStaff() {
+      return signedIn()
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['staff', 'admin'];
+    }
+    function panelUid(saleId, slot) {
+      return firestore.get(/databases/(default)/documents/sales/$(saleId)).data.get('panel', {}).get(slot, {}).get('uid', '');
+    }
+    // A PDF or image, up to 20 MB.
+    function validReport() {
+      return request.resource.size <= 20 * 1024 * 1024
+        && (request.resource.contentType == 'application/pdf' || request.resource.contentType.matches('image/.*'));
+    }
+    function uploadedBy(uid) {
+      return resource.metadata != null && resource.metadata.get('authorUid', '') == uid;
+    }
+
+    // Sale pictures and walk videos: anyone can view, only Backring Buyer staff upload.
     match /sales/{saleId}/hips/{hip}/{file} {
       allow read: if true;
-      allow write: if request.auth != null
-        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['staff', 'admin']
-        && request.resource.size < 500 * 1024 * 1024;
+      allow write: if isStaff() && request.resource.size < 500 * 1024 * 1024;
+    }
+
+    // A vet's or bloodstock agent's report files for one opinion. The author and staff can always open
+    // them; a buyer can once they've bought that opinion. (Buyers only learn the random file names
+    // from the opinion itself, which they can read only after it's approved.)
+    match /sales/{saleId}/hips/{hip}/opinions/{slot}/{file} {
+      allow read: if signedIn() && (
+        uploadedBy(request.auth.uid)
+        || isStaff()
+        || firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)/purchases/$(saleId + '_' + hip + '_' + slot)));
+      allow create: if signedIn() && validReport()
+        && request.resource.metadata.authorUid == request.auth.uid
+        && (panelUid(saleId, slot) == request.auth.uid || isStaff());
+      allow delete: if signedIn() && (uploadedBy(request.auth.uid) || isStaff());
+    }
+
+    // The hip's repository report and images, uploaded by staff. Anyone signed in can open them.
+    match /sales/{saleId}/hips/{hip}/vetReport/{file} {
+      allow read: if signedIn();
+      allow create: if isStaff() && validReport() && request.resource.metadata.authorUid == request.auth.uid;
+      allow delete: if isStaff();
     }
   }
 }

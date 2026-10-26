@@ -7,6 +7,21 @@ enum MediaKind {
     var contentType: String { self == .photo ? "image/jpeg" : "video/quicktime" }
 }
 
+/// Where an attachment is stored. Storage rules give each folder its own readers.
+enum AttachmentFolder {
+    /// A vet's or agent's opinion: the author, staff, and buyers who bought it.
+    case opinion(saleID: String, hip: Int, slot: OpinionSlot)
+    /// The hip's vet report: staff upload, signed-in users open.
+    case vetReport(saleID: String, hip: Int)
+
+    var path: String {
+        switch self {
+        case let .opinion(saleID, hip, slot): "sales/\(saleID)/hips/\(hip)/opinions/\(slot.rawValue)"
+        case let .vetReport(saleID, hip): "sales/\(saleID)/hips/\(hip)/vetReport"
+        }
+    }
+}
+
 /// The AI's conformation grade from a hip's sale walk video. Staff accept or change it before it's saved.
 struct ConformationSuggestion: Decodable, Hashable {
     /// 1–10 in half points, like the C grade staff enter.
@@ -52,6 +67,12 @@ protocol SaleBackend {
     func save(hip: Hip, saleID: String) async throws
     func deleteHip(number: Int, saleID: String) async throws
     func upload(_ data: Data, kind: MediaKind, saleID: String, hip: Int) async throws -> URL
+    /// Uploads a PDF or JPEG report file under a new, unguessable name. `author` is the uploader's uid.
+    func uploadAttachment(_ data: Data, name: String, contentType: String, to folder: AttachmentFolder,
+                          author: String) async throws -> Attachment
+    /// Downloads an attachment the signed-in user is allowed to open.
+    func attachmentData(_ attachment: Attachment) async throws -> Data
+    func deleteAttachment(_ attachment: Attachment) async throws
     /// Staff only: the AI's conformation grade from the hip's saved sale walk video. Nothing is saved.
     func suggestConformation(saleID: String, hip: Int) async throws -> ConformationSuggestion
 
@@ -84,6 +105,7 @@ final class SampleBackend: SaleBackend {
     private var people = SampleData.people
     private var opinions = SampleData.opinions
     private var purchases: [String: Set<String>] = [:]
+    private var files: [String: Data] = [:]
 
     func currentUser() async throws -> AppUser? { nil }
 
@@ -146,6 +168,24 @@ final class SampleBackend: SaleBackend {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(hip)-\(kind.fileName)")
         try data.write(to: url)
         return url
+    }
+
+    func uploadAttachment(_ data: Data, name: String, contentType: String, to folder: AttachmentFolder,
+                          author: String) async throws -> Attachment {
+        let path = "\(folder.path)/\(UUID().uuidString)"
+        files[path] = data
+        return Attachment(name: name, path: path, contentType: contentType, size: data.count)
+    }
+
+    func attachmentData(_ attachment: Attachment) async throws -> Data {
+        guard let data = files[attachment.path] else {
+            throw BackendError(message: "Demo mode only keeps files you attached since the app opened.")
+        }
+        return data
+    }
+
+    func deleteAttachment(_ attachment: Attachment) async throws {
+        files[attachment.path] = nil
     }
 
     func suggestConformation(saleID: String, hip: Int) async throws -> ConformationSuggestion {

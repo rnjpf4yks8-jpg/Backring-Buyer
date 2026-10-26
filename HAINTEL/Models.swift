@@ -27,8 +27,26 @@ struct VetReport: Codable, Hashable {
     var scope: Grade = .clean
     var scopeNotes = ""
     var filed = ""
+    /// The repository report and images as uploaded by staff. Signed-in users can open them.
+    var attachments: [Attachment]? = nil
 
-    var isEntered: Bool { !filed.isEmpty || !radiographNotes.isEmpty || !scopeNotes.isEmpty }
+    var isEntered: Bool {
+        !filed.isEmpty || !radiographNotes.isEmpty || !scopeNotes.isEmpty || !(attachments ?? []).isEmpty
+    }
+}
+
+/// A PDF or image uploaded with an opinion or the vet report. The file lives in Firebase Storage at
+/// `path`, where storage rules decide who can open it (firebase/storage.rules).
+struct Attachment: Codable, Hashable, Identifiable {
+    var id: String { path }
+    /// What people see, like "Repository report.pdf" or "Left fore.jpg".
+    var name: String
+    var path: String
+    var contentType: String
+    var size: Int
+
+    var isPDF: Bool { contentType == "application/pdf" }
+    var sizeText: String { ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file) }
 }
 
 /// What a paid vet opinion is based on. The vet states this in their report.
@@ -156,6 +174,8 @@ struct Opinion: Codable, Hashable {
     var score: Double?
     /// Backring Buyer approves each opinion before buyers can see it. Missing means approved (posted before reviews began).
     var status: OpinionStatus?
+    /// The vet's or agent's own report files (PDF or images). Buyers open them once they've bought the opinion.
+    var attachments: [Attachment]? = nil
 
     var reviewStatus: OpinionStatus { status ?? .approved }
 }

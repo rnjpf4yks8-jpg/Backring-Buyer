@@ -323,6 +323,7 @@ private struct VetReportPanel: View {
             section("Radiographs", grade: report.radiographs, notes: report.radiographNotes)
             section("Throat scope", grade: report.scope, notes: report.scopeNotes)
             Card { InfoRow(label: "Filed in repository", value: report.filed) }
+            AttachmentList(attachments: report.attachments ?? [])
         }
     }
 
@@ -456,19 +457,22 @@ private struct VetOpinionPanel: View {
     let member: PanelMember?
 
     var body: some View {
-        Card {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(member?.name ?? "Vet").font(Theme.sans(18, .semibold)).foregroundStyle(Theme.ink)
-                    Text(member?.org ?? "").font(Theme.sans(14)).foregroundStyle(Theme.slate)
+        VStack(spacing: 12) {
+            Card {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(member?.name ?? "Vet").font(Theme.sans(18, .semibold)).foregroundStyle(Theme.ink)
+                        Text(member?.org ?? "").font(Theme.sans(14)).foregroundStyle(Theme.slate)
+                    }
+                    Spacer()
+                    if let grade = opinion.grade { GradeBadge(grade: grade) }
                 }
-                Spacer()
-                if let grade = opinion.grade { GradeBadge(grade: grade) }
+                Divider()
+                if let basis = opinion.basis { BasisRow(basis: basis) }
+                InfoRow(label: "Date", value: opinion.date)
+                Text(opinion.notes).font(Theme.sans(15)).foregroundStyle(Theme.slate).lineSpacing(3)
             }
-            Divider()
-            if let basis = opinion.basis { BasisRow(basis: basis) }
-            InfoRow(label: "Date", value: opinion.date)
-            Text(opinion.notes).font(Theme.sans(15)).foregroundStyle(Theme.slate).lineSpacing(3)
+            AttachmentList(attachments: opinion.attachments ?? [])
         }
     }
 }
@@ -511,6 +515,7 @@ private struct AgentOpinionPanel: View {
                 InfoRow(label: "Date", value: opinion.date)
                 Text(opinion.notes).font(Theme.sans(15)).foregroundStyle(Theme.slate).lineSpacing(3)
             }
+            AttachmentList(attachments: opinion.attachments ?? [])
         }
     }
 }

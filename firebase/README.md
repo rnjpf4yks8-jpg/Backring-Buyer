@@ -45,6 +45,16 @@ firebase deploy --only functions,firestore:rules,storage
 ```
 The app's App ID also needs the Push Notifications capability, with a refreshed provisioning profile.
 
+## Report files (PDF and photos)
+Vets and bloodstock agents can attach their written report, radiographs or scope images to an opinion
+(Add photos, Add PDF or image file, or Scan paper report with the camera). Staff can attach the
+repository report to a hip's Vet Report. Photos are shrunk to 2400 px JPEGs; files can be up to 20 MB.
+
+Who can open them (`storage.rules`): opinion files, the vet or agent who posted them, staff and the
+administrator, and buyers who bought that opinion; vet report files, anyone signed in. The app never
+shares download links, so these rules apply every time a file is opened. Deploy rule changes with
+`firebase deploy --only storage`.
+
 ## AI conformation check (sale walk video)
 Staff can ask the AI for a C grade from a hip's sale walk video: edit the hip (Hip Number button),
 tap **Suggest C grade from walk video**, then **Use** the grade or type your own, and Save. The AI
