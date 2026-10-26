@@ -10,7 +10,8 @@ workflows:
     integrations:
       app_store_connect: HAINTEL ASC
     environment:
-      xcode: latest
+      # Pinned: the "latest" Xcode machine pool has been overloaded since Oct 2026 (builds stuck in queue).
+      xcode: 26.5
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.example.haintel
