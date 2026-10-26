@@ -33,7 +33,7 @@
 - Firebase project: haintel-f481c → https://console.firebase.google.com/project/haintel-f481c
 - Config file: HAINTEL/GoogleService-Info.plist (already in the repo)
 - Setup steps, security rules, spreadsheet template and admin script: firebase/README.md
-  - Load a sale:  node admin.js create-sale <id> "<name>" "<company>" "<date>"
+  - Add a sale: in the app, + on the sales list (staff). Or: node admin.js create-sale <id> "<name>" "<company>" "<date>"
                   node admin.js import-hips <id> hips.csv
   - Give people roles: node admin.js set-role / assign  (see firebase/README.md)
 

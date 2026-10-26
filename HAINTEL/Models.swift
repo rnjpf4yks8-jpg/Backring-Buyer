@@ -199,7 +199,7 @@ struct PanelMember: Codable, Hashable {
     var org: String
 }
 
-struct Sale: Codable, Hashable {
+struct Sale: Codable, Hashable, Identifiable {
     var id: String
     var name: String
     var company: String
@@ -214,6 +214,35 @@ struct Sale: Codable, Hashable {
 
     /// The sale date as a Date, for ordering the sales list. Dates are entered like "Oct 27, 2026".
     var day: Date? { Sale.dateFormat.date(from: date) }
+
+    /// A date written the way sales store it: "Oct 27, 2026".
+    static func dateText(_ day: Date) -> String { dateFormat.string(from: day) }
+
+    /// A new sale's ID, like admin.js uses: company initials (or the one-word name), month and year,
+    /// e.g. "ft-oct-2026" for Fasig-Tipton in October 2026. `-2`, `-3`… are added if it's taken.
+    static func makeID(company: String, day: Date, taken: Set<String>) -> String {
+        let words = company.lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+        let prefix = words.count > 1 ? String(words.compactMap(\.first)) : (words.first ?? "sale")
+        let month = monthFormat.string(from: day).lowercased()
+        let base = "\(prefix)-\(month)"
+        var id = base
+        var n = 2
+        while taken.contains(id) {
+            id = "\(base)-\(n)"
+            n += 1
+        }
+        return id
+    }
+
+    /// "oct-2026" in English whatever the phone's language, so IDs stay plain ASCII.
+    private static let monthFormat: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "MMM-yyyy"
+        return f
+    }()
 
     private static let dateFormat: DateFormatter = {
         let f = DateFormatter()

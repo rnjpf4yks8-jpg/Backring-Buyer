@@ -479,6 +479,34 @@ final class SaleStore {
         return saved
     }
 
+    // MARK: Sales (staff)
+
+    /// Adds a sale or saves changes to one, and features it (marked NOW) if asked. Returns whether it saved.
+    func save(_ edited: Sale, feature: Bool) async -> Bool {
+        var saved = false
+        await attempt {
+            try await backend.save(sale: edited)
+            if feature { try await backend.setFeaturedSale(edited.id) }
+            if let i = sales.firstIndex(where: { $0.id == edited.id }) {
+                sales[i].name = edited.name
+                sales[i].company = edited.company
+                sales[i].date = edited.date
+            } else {
+                sales.append(edited)
+                hipCounts[edited.id] = 0
+            }
+            if sale.id == edited.id {
+                sale.name = edited.name
+                sale.company = edited.company
+                sale.date = edited.date
+            }
+            sales.sort { ($0.day ?? .distantPast, $0.name) > ($1.day ?? .distantPast, $1.name) }
+            if feature { featuredSaleID = edited.id }
+            saved = true
+        }
+        return saved
+    }
+
     // MARK: Hips (staff)
 
     /// Saves a hip. If staff changed its number, the old entry is replaced.

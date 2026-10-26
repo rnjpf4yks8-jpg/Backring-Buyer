@@ -25,6 +25,8 @@ struct RootView: View {
 struct SalesIndexView: View {
     @Environment(SaleStore.self) private var store
     @State private var showAccount = false
+    @State private var addingSale = false
+    @State private var editingSale: Sale?
     let open: (String) -> Void
 
     var body: some View {
@@ -35,7 +37,9 @@ struct SalesIndexView: View {
                     if store.isLoading {
                         ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
                     } else {
-                        Text("No sales yet. Backring Buyer staff add each sale before its catalog is loaded.")
+                        Text(store.isStaff
+                             ? "No sales yet. Tap + to add the first one."
+                             : "No sales yet. Backring Buyer staff add each sale before its catalog is loaded.")
                             .font(Theme.sans(15)).foregroundStyle(Theme.slate)
                     }
                 }
@@ -45,6 +49,16 @@ struct SalesIndexView: View {
                                 featured: sale.id == store.featuredSaleID)
                     }
                     .buttonStyle(.plain)
+                    .contextMenu {
+                        if store.isStaff {
+                            Button { editingSale = sale } label: { Label("Edit sale", systemImage: "pencil") }
+                        }
+                    }
+                }
+                if store.isStaff, !store.sales.isEmpty {
+                    Text("Press and hold a sale to change its name, company or date.")
+                        .font(Theme.sans(13)).foregroundStyle(Theme.muted)
+                        .padding(.top, 4)
                 }
             }
             .padding(16)
@@ -60,6 +74,14 @@ struct SalesIndexView: View {
                         .foregroundStyle(.white)
                 }
                 .accessibilityLabel("Account")
+            }
+            if store.isStaff {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { addingSale = true } label: {
+                        Image(systemName: "plus").foregroundStyle(.white)
+                    }
+                    .accessibilityLabel("Add sale")
+                }
             }
             if store.isAdmin {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -94,6 +116,8 @@ struct SalesIndexView: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .sheet(isPresented: $showAccount) { AccountView() }
+        .sheet(isPresented: $addingSale) { SaleSheet(editing: nil) }
+        .sheet(item: $editingSale) { SaleSheet(editing: $0) }
     }
 }
 

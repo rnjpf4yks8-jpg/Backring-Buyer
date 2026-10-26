@@ -67,6 +67,21 @@ final class FirebaseBackend: SaleBackend {
         try await db.collection("config").document("app").getDocument().get("currentSale") as? String
     }
 
+    /// A new sale is written whole (empty panel, default prices). For an existing sale only the name,
+    /// company and date change, so its panel and prices are kept.
+    func save(sale: Sale) async throws {
+        let ref = db.collection("sales").document(sale.id)
+        if try await ref.getDocument().exists {
+            try await ref.setData(["name": sale.name, "company": sale.company, "date": sale.date], merge: true)
+        } else {
+            try ref.setData(from: sale)
+        }
+    }
+
+    func setFeaturedSale(_ saleID: String) async throws {
+        try await db.collection("config").document("app").setData(["currentSale": saleID], merge: true)
+    }
+
     func hipCount(saleID: String) async throws -> Int {
         let result = try await hipsRef(saleID).count.getAggregation(source: .server)
         return result.count.intValue

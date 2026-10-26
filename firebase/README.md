@@ -70,12 +70,15 @@ One-time setup, from this `firebase` folder with the Firebase CLI (`npm install 
 3. `firebase deploy --only functions` (this also deploys the purchase checker).
 
 ## For each sale
+Staff add the sale in the app: **+** on the sales list, then the sale's name, company and date. Leave
+**Feature this sale** on to mark it NOW (`config/app.currentSale`). The sheet shows the sale's ID
+(e.g. `ft-oct-2026`); use it to import the catalog. Press and hold a sale to change its name, company
+or date later. Or do the same from a computer:
 ```
 node admin.js create-sale ft-oct-2026 "October Yearling Sale" "Fasig-Tipton" "Oct 27, 2026"
 node admin.js import-hips ft-oct-2026 hips.csv
 ```
-Every sale appears in the app's sales list, newest first. The sale created last is marked NOW
-(`config/app.currentSale`).
+Every sale appears in the app's sales list, newest first. The sale created or featured last is marked NOW.
 
 `hips.csv` follows `hips-template.csv`: one row per hip with the catalog details from the sale company's
 website. Re-importing updates catalog fields only; what staff entered in the app is kept.

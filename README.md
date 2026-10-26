@@ -30,7 +30,8 @@ two bloodstock agents. Setup steps, security rules, the hips spreadsheet templat
 are in `firebase/`.
 
 - **Buyers** browse everything and buy Vet 1, Vet 2, BS1 and BS2.
-- **HAINTEL staff** add hips (+) and edit hip info and grades, pedigree, vet report, history, reserve, HP,
+- **HAINTEL staff** add sales (+ on the sales list; press and hold a sale to change its name, company or
+  date), add hips (+ inside a sale) and edit hip info and grades, pedigree, vet report, history, reserve, HP,
   sale picture and walk video (uploaded from the phone).
 - **Vets and bloodstock agents** each post and edit only their own opinion.
 

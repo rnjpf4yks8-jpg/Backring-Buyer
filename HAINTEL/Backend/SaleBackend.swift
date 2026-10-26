@@ -62,6 +62,10 @@ protocol SaleBackend {
     func loadSales() async throws -> [Sale]
     /// The sale Backring Buyer is featuring now (config/app.currentSale), if one is set.
     func featuredSaleID() async throws -> String?
+    /// Staff: adds a sale, or changes an existing sale's name, company and date (its panel and prices are kept).
+    func save(sale: Sale) async throws
+    /// Staff: marks a sale NOW (config/app.currentSale).
+    func setFeaturedSale(_ saleID: String) async throws
     func hipCount(saleID: String) async throws -> Int
     func loadHips(saleID: String) async throws -> [Hip]
     func save(hip: Hip, saleID: String) async throws
@@ -102,6 +106,7 @@ final class SampleBackend: SaleBackend {
     let isDemo = true
     private var hipsBySale = [SampleData.sale.id: SampleData.hips]
     private var sales = SampleData.sales
+    private var featured = SampleData.sale.id
     private var people = SampleData.people
     private var opinions = SampleData.opinions
     private var purchases: [String: Set<String>] = [:]
@@ -148,7 +153,19 @@ final class SampleBackend: SaleBackend {
 
     func loadSales() async throws -> [Sale] { sales }
 
-    func featuredSaleID() async throws -> String? { SampleData.sale.id }
+    func featuredSaleID() async throws -> String? { featured }
+
+    func save(sale: Sale) async throws {
+        if let i = sales.firstIndex(where: { $0.id == sale.id }) {
+            sales[i].name = sale.name
+            sales[i].company = sale.company
+            sales[i].date = sale.date
+        } else {
+            sales.append(sale)
+        }
+    }
+
+    func setFeaturedSale(_ saleID: String) async throws { featured = saleID }
 
     func hipCount(saleID: String) async throws -> Int { hipsBySale[saleID]?.count ?? 0 }
 
