@@ -21,6 +21,19 @@ Until these steps are done the app runs in demo mode on sample data.
    export GOOGLE_APPLICATION_CREDENTIALS=/path/to/that-key.json
    ```
 
+## Roles and the staff code
+When creating an account, people pick **Buyer**, **Vet**, **Bloodstock agent** or **Staff**. Vets and agents
+still post opinions only once staff add them to a sale on the Panel screen. **Staff** (full administrator
+rights: sales, hips, grades, panels, opinion approvals) needs the staff code, which is checked on the
+server. Anyone already signed in can also enter the code on the Account screen and tap **Become staff**.
+After 10 wrong codes an account is locked out of that.
+
+Set or change the code (at least 6 characters, keep it private), then deploy:
+```
+firebase functions:secrets:set STAFF_CODE
+firebase deploy --only functions,firestore:rules
+```
+
 ## AI conformation check (sale walk video)
 Staff can ask the AI for a C grade from a hip's sale walk video: edit the hip (Hip Number button),
 tap **Suggest C grade from walk video**, then **Use** the grade or type your own, and Save. The AI

@@ -2,7 +2,8 @@ rules_version = '2';
 
 // Who can do what:
 //   anyone        reads sales and hips (catalog data)
-//   staff         write sales, hips, user roles
+//   staff         write sales, hips, user roles (staff comes from the staff code, see functions/staff.js)
+//   anyone        signs up as buyer, vet or bloodstock agent and may switch between those
 //   panel member  (the sale's vet1/vet2/bs1/bs2) writes only their own opinion, always as
 //                 pending, and may move only their own slot into opinionsPending / out of opinionsIn
 //   staff         approve opinions (status approved, slot moves to opinionsIn)
@@ -46,9 +47,17 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isStaff());
-      // Anyone can create their own profile, but only as a buyer. Staff assign other roles.
-      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == 'buyer';
-      allow update, delete: if isStaff();
+      // Anyone can create their own profile as a buyer, vet or bloodstock agent, and switch between those
+      // later. Vets and agents still post only once staff add them to a sale's panel. Staff is never
+      // self-assigned here: the claimStaff Cloud Function grants it for the right staff code.
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.role in ['buyer', 'vet', 'agent'];
+      allow update: if isStaff()
+        || (signedIn() && request.auth.uid == uid
+            && resource.data.role in ['buyer', 'vet', 'agent']
+            && request.resource.data.role in ['buyer', 'vet', 'agent']
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role']));
+      allow delete: if isStaff();
 
       match /purchases/{purchaseId} {
         allow read: if signedIn() && request.auth.uid == uid;

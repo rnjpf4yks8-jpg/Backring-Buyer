@@ -11,6 +11,8 @@ const db = admin.firestore();
 
 // Staff-only AI conformation suggestion from the sale walk video (see conformation.js).
 exports.suggestConformation = require('./conformation').suggestConformation;
+// Signing up or upgrading to staff with the staff code (see staff.js).
+exports.claimStaff = require('./staff').claimStaff;
 
 const BUNDLE_ID = 'com.example.haintel';
 const APP_APPLE_ID = 6826705029;

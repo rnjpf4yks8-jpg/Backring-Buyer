@@ -29,7 +29,10 @@ protocol SaleBackend {
 
     func currentUser() async throws -> AppUser?
     func signIn(email: String, password: String) async throws -> AppUser
-    func createAccount(name: String, email: String, password: String) async throws -> AppUser
+    /// New accounts are a buyer, vet or bloodstock agent. Staff comes only from `claimStaff`.
+    func createAccount(name: String, email: String, password: String, role: Role) async throws -> AppUser
+    /// Makes the signed-in user staff if `code` is the staff code (checked on the server).
+    func claimStaff(code: String) async throws
     func signOut() throws
 
     func loadSales() async throws -> [Sale]
@@ -79,8 +82,12 @@ final class SampleBackend: SaleBackend {
         throw BackendError(message: "Demo mode has no passwords. Pick a sample person instead.")
     }
 
-    func createAccount(name: String, email: String, password: String) async throws -> AppUser {
+    func createAccount(name: String, email: String, password: String, role: Role) async throws -> AppUser {
         throw BackendError(message: "Demo mode can't create accounts. Pick a sample person instead.")
+    }
+
+    func claimStaff(code: String) async throws {
+        throw BackendError(message: "Demo mode has no staff codes. Pick the sample staff person instead.")
     }
 
     func signOut() throws {}

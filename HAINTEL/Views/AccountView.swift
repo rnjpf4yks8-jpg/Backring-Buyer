@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Sign in, create a buyer account, or (in demo mode) switch between sample people.
+/// Sign in, create an account as a buyer, vet, bloodstock agent or staff (with the staff code),
+/// or (in demo mode) switch between sample people.
 struct AccountView: View {
     @Environment(SaleStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -9,6 +10,12 @@ struct AccountView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var working = false
+    @State private var role: Role = .buyer
+    @State private var staffCode = ""
+    @State private var claiming = false
+
+    /// The roles people pick, in the order shown.
+    private let roles: [Role] = [.buyer, .vet, .agent, .staff]
 
     var body: some View {
         NavigationStack {
@@ -20,6 +27,37 @@ struct AccountView: View {
                         if let slot = OpinionSlot.allCases.first(where: { store.isAuthor($0) }) {
                             LabeledContent("Posts", value: slot.title)
                         }
+                    }
+                }
+
+                if !store.isDemo, let user = store.user, user.role != .staff {
+                    Section {
+                        Picker("I am a", selection: Binding(
+                            get: { user.role },
+                            set: { newRole in Task { await store.changeOwnRole(to: newRole) } })) {
+                            ForEach(roles.filter { $0 != .staff }, id: \.self) { Text(roleName($0)).tag($0) }
+                        }
+                    } footer: {
+                        Text("Vets and bloodstock agents post opinions once Backring Buyer staff add them to a sale.")
+                    }
+                    Section {
+                        SecureField("Staff code", text: $staffCode)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        Button {
+                            claiming = true
+                            Task {
+                                if await store.claimStaff(code: staffCode) { staffCode = "" }
+                                claiming = false
+                            }
+                        } label: {
+                            if claiming { ProgressView() } else { Text("Become staff") }
+                        }
+                        .disabled(claiming || staffCode.trimmingCharacters(in: .whitespaces).isEmpty)
+                    } header: {
+                        Text("Backring Buyer staff")
+                    } footer: {
+                        Text("Staff manage sales, hips, grades, panels and opinion approvals. Ask the owner for the staff code.")
                     }
                 }
 
@@ -58,6 +96,14 @@ struct AccountView: View {
                         .pickerStyle(.segmented)
                         if creating {
                             TextField("Your name", text: $name).textContentType(.name)
+                            Picker("I am a", selection: $role) {
+                                ForEach(roles, id: \.self) { Text(roleName($0)).tag($0) }
+                            }
+                            if role == .staff {
+                                SecureField("Staff code", text: $staffCode)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                            }
                         }
                         TextField("Email", text: $email)
                             .textContentType(.emailAddress)
@@ -67,24 +113,26 @@ struct AccountView: View {
                         SecureField("Password", text: $password)
                             .textContentType(creating ? .newPassword : .password)
                     } footer: {
-                        Text("Catalog info is free. Vet and agent opinions are paid with the card on your Apple ID, so there’s no card to enter here. Vets and agents: create an account, then Backring Buyer staff add you to a sale.")
+                        Text("Catalog info is free. Vet and agent opinions are paid with the card on your Apple ID, so there’s no card to enter here. Vets and agents: pick your role, then Backring Buyer staff add you to a sale. Staff need the staff code.")
                     }
                     Section {
                         Button {
                             working = true
                             Task {
                                 if creating {
-                                    await store.createAccount(name: name, email: email, password: password)
+                                    await store.createAccount(name: name, email: email, password: password,
+                                                              role: role, staffCode: staffCode)
                                 } else {
                                     await store.signIn(email: email, password: password)
                                 }
                                 working = false
-                                if store.user != nil { dismiss() }
+                                if store.user != nil, store.errorMessage == nil { dismiss() }
                             }
                         } label: {
                             if working { ProgressView() } else { Text(creating ? "Create account" : "Sign in") }
                         }
-                        .disabled(working || email.isEmpty || password.count < 6 || (creating && name.isEmpty))
+                        .disabled(working || email.isEmpty || password.count < 6 || (creating && name.isEmpty)
+                                  || (creating && role == .staff && staffCode.trimmingCharacters(in: .whitespaces).isEmpty))
                     }
                 }
 
@@ -109,6 +157,10 @@ struct AccountView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
         }
+    }
+
+    private func roleName(_ role: Role) -> String {
+        role == .staff ? "Staff (needs code)" : role.label
     }
 
     private func personDetail(_ person: AppUser) -> String {

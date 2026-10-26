@@ -32,10 +32,11 @@ final class FirebaseBackend: SaleBackend {
         return user
     }
 
-    /// New accounts are always buyers. Staff change the role in Firestore for staff, vets and agents.
-    func createAccount(name: String, email: String, password: String) async throws -> AppUser {
+    /// New accounts are buyers, vets or bloodstock agents (security rules allow only those). Staff
+    /// accounts start as buyers and are upgraded by `claimStaff`.
+    func createAccount(name: String, email: String, password: String, role: Role) async throws -> AppUser {
         let result = try await Auth.auth().createUser(withEmail: email, password: password)
-        let user = AppUser(uid: result.user.uid, name: name, role: .buyer, email: email)
+        let user = AppUser(uid: result.user.uid, name: name, role: role == .staff ? .buyer : role, email: email)
         try db.collection("users").document(user.uid).setData(from: user)
         return user
     }
@@ -90,33 +91,39 @@ final class FirebaseBackend: SaleBackend {
         return try await ref.downloadURL()
     }
 
-    /// Calls the suggestConformation Cloud Function (firebase/functions/conformation.js) over HTTPS,
-    /// signed in as the current user. It can take a minute or two: it pulls frames from the video first.
+    /// The AI's conformation grade from the suggestConformation Cloud Function (firebase/functions/conformation.js).
+    /// It can take a minute or two: it pulls frames from the video first.
     func suggestConformation(saleID: String, hip: Int) async throws -> ConformationSuggestion {
-        guard let user = Auth.auth().currentUser else { throw BackendError(message: "Sign in as staff first.") }
+        try await callFunction("suggestConformation", ["saleId": saleID, "hip": hip], timeout: 300)
+    }
+
+    /// The claimStaff Cloud Function (firebase/functions/staff.js) checks the code and sets the role.
+    func claimStaff(code: String) async throws {
+        struct Granted: Decodable { var role: String }
+        let _: Granted = try await callFunction("claimStaff", ["code": code], timeout: 60)
+    }
+
+    /// Calls a Firebase callable Cloud Function over HTTPS, signed in as the current user.
+    private func callFunction<T: Decodable>(_ name: String, _ data: [String: Any], timeout: TimeInterval) async throws -> T {
+        guard let user = Auth.auth().currentUser else { throw BackendError(message: "Sign in first.") }
         guard let projectID = FirebaseApp.app()?.options.projectID,
-              let url = URL(string: "https://us-central1-\(projectID).cloudfunctions.net/suggestConformation") else {
+              let url = URL(string: "https://us-central1-\(projectID).cloudfunctions.net/\(name)") else {
             throw BackendError(message: "Firebase isn’t set up in this build.")
         }
-        var request = URLRequest(url: url, timeoutInterval: 300)
+        var request = URLRequest(url: url, timeoutInterval: timeout)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(try await user.getIDToken())", forHTTPHeaderField: "Authorization")
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["data": ["saleId": saleID, "hip": hip]])
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["data": data])
 
-        struct Reply: Decodable {
-            struct Failure: Decodable { var message: String }
-            var result: ConformationSuggestion?
-            var error: Failure?
-        }
-        let (data, response) = try await URLSession.shared.data(for: request)
-        let reply = try? JSONDecoder().decode(Reply.self, from: data)
+        let (body, response) = try await URLSession.shared.data(for: request)
+        let reply = try? JSONDecoder().decode(CallableReply<T>.self, from: body)
         if let result = reply?.result { return result }
         if let message = reply?.error?.message { throw BackendError(message: message) }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         throw BackendError(message: status == 404
-            ? "AI grading isn’t switched on yet. Deploy the Cloud Functions (see firebase/README.md)."
-            : "The AI couldn’t grade this video right now (error \(status)). Try again in a minute.")
+            ? "This feature isn’t switched on yet. Deploy the Cloud Functions (see firebase/README.md)."
+            : "The server couldn’t do that right now (error \(status)). Try again in a minute.")
     }
 
     // MARK: Opinions
@@ -191,5 +198,11 @@ final class FirebaseBackend: SaleBackend {
     private func opinionRef(_ saleID: String, _ hip: Int, _ slot: OpinionSlot) -> DocumentReference {
         hipsRef(saleID).document(String(hip)).collection("opinions").document(slot.rawValue)
     }
+}
+/// What a callable Cloud Function sends back: {"result": …} or {"error": {"message": …}}.
+private struct CallableReply<T: Decodable>: Decodable {
+    struct Failure: Decodable { var message: String }
+    var result: T?
+    var error: Failure?
 }
 #endif

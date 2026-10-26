@@ -7,6 +7,10 @@
 - App Store Connect SKU: HAINTEL001
 - Prices: Vet 1 / Vet 2 opinions $25 each, BS1 / BS2 bloodstock agent opinions $50 each
 
+## Roles
+- Sign-up: Buyer, Vet, Bloodstock agent, or Staff (Staff needs the staff code: STAFF_CODE Firebase secret)
+- Signed in: Account screen → Staff code → Become staff
+
 ## AI conformation check
 - Staff: Hip Number button → Edit → "Suggest C grade from walk video" (needs an uploaded walk video)
 - Runs in the suggestConformation Cloud Function with the ANTHROPIC_API_KEY secret; setup in firebase/README.md

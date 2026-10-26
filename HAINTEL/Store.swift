@@ -111,10 +111,37 @@ final class SaleStore {
         }
     }
 
-    func createAccount(name: String, email: String, password: String) async {
+    /// Staff sign-up makes a buyer account first, then upgrades it with the staff code. If the code is
+    /// wrong the buyer account stays, and the code can be tried again on the Account screen.
+    func createAccount(name: String, email: String, password: String, role: Role, staffCode: String = "") async {
         await attempt {
-            user = try await backend.createAccount(name: name, email: email, password: password)
+            user = try await backend.createAccount(name: name, email: email, password: password, role: role)
             try await reloadPurchases()
+        }
+        guard role == .staff, user != nil else { return }
+        if !(await claimStaff(code: staffCode)) {
+            errorMessage = (errorMessage ?? "That staff code didn’t work.")
+                + " Your account was created as a buyer; enter the staff code below to try again."
+        }
+    }
+
+    /// Makes the signed-in user staff if the code is right. Returns whether it worked.
+    func claimStaff(code: String) async -> Bool {
+        var granted = false
+        await attempt {
+            try await backend.claimStaff(code: code.trimmingCharacters(in: .whitespacesAndNewlines))
+            user?.role = .staff
+            granted = true
+        }
+        return granted
+    }
+
+    /// Buyers, vets and bloodstock agents can switch between those roles themselves.
+    func changeOwnRole(to role: Role) async {
+        guard let uid = user?.uid, role != .staff, user?.role != .staff, role != user?.role else { return }
+        await attempt {
+            try await backend.setRole(role, uid: uid)
+            user?.role = role
         }
     }
 
