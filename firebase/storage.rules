@@ -21,10 +21,11 @@ service firebase.storage {
       return resource.metadata != null && resource.metadata.get('authorUid', '') == uid;
     }
 
-    // Sale pictures and walk videos: anyone can view, only Backring Buyer staff upload.
+    // Sale pictures and walk videos: anyone can view, only Backring Buyer staff upload or delete
+    // (deleting a sale removes them; a delete has no request.resource).
     match /sales/{saleId}/hips/{hip}/{file} {
       allow read: if true;
-      allow write: if isStaff() && request.resource.size < 500 * 1024 * 1024;
+      allow write: if isStaff() && (request.resource == null || request.resource.size < 500 * 1024 * 1024);
     }
 
     // A vet's or bloodstock agent's report files for one opinion. The author and staff can always open

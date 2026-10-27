@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Staff add a sale (the + button on the sales list) or change one's name, company and date
-/// (press and hold a sale). Does what `node admin.js create-sale` does.
+/// (press and hold a sale). Does what `node admin.js create-sale` does. The administrator can also
+/// delete the sale here.
 struct SaleSheet: View {
     @Environment(SaleStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -13,6 +14,8 @@ struct SaleSheet: View {
     @State private var feature = true
     @State private var triedSaving = false
     @State private var saving = false
+    @State private var confirmDelete = false
+    @State private var deleting = false
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var trimmedCompany: String { company.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -62,7 +65,35 @@ struct SaleSheet: View {
                         Text("Opinion prices start at \(usd(25)) per vet and \(usd(50)) per bloodstock agent. Add the vets and agents on the sale’s Panel screen, and hips with + inside the sale.")
                     }
                 }
+
+                if editing != nil, store.isAdmin {
+                    Section {
+                        Button(role: .destructive) { confirmDelete = true } label: {
+                            Label("Delete sale", systemImage: "trash")
+                        }
+                        .disabled(saving || deleting)
+                    } footer: {
+                        Text("Administrator only. Deletes the sale with its hips, vet reports, opinions and attached PDFs.")
+                    }
+                }
             }
+            .confirmationDialog("Delete this sale?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                if let editing {
+                    Button("Delete \(editing.name)", role: .destructive) {
+                        Task {
+                            deleting = true
+                            if await store.deleteSale(editing) { dismiss() }
+                            deleting = false
+                        }
+                    }
+                }
+            } message: {
+                if let editing { Text("\(store.deleteSaleWarning(editing)) This can’t be undone.") }
+            }
+            .overlay {
+                if deleting { DeletingOverlay(text: "Deleting sale…") }
+            }
+            .interactiveDismissDisabled(deleting)
             .navigationTitle(editing == nil ? "Add sale" : "Edit sale")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

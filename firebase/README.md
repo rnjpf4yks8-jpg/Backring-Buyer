@@ -32,6 +32,21 @@ role (Buyer takes access away) and **delete accounts** (sign-in, profile, purcha
 Staff can do everything with sales, hips, grades, panels and opinion approvals; putting a buyer on
 a panel still makes them a vet or agent. Only the administrator handles role requests and accounts.
 
+**Administrator tools** (all in the app, no Cloud Function needed):
+- **Add a person:** People → Add a person. Name, email and role (buyer, vet, bloodstock agent, staff or
+  administrator). Leave the password blank and they get Firebase's password email to choose their own
+  (it can land in junk mail; People → the person → Email a link to set their password sends it again).
+  The app makes the sign-in on a second copy of Firebase so the administrator stays signed in.
+- **Delete a sale:** press and hold it on the sales list → Delete sale (or Edit sale → Delete sale).
+  It deletes the hips, vet reports, opinions and their files, then the sale. Purchase records stay
+  with the buyers' accounts.
+- **Vet reports:** Vet Report button → Edit → Add PDF or image file. With a PDF attached, grades and
+  notes are optional. Delete vet report takes the whole report and its files off the hip.
+- **Vet and bloodstock opinions:** staff and the administrator can post or edit any slot (Vet 1, Vet 2,
+  BS1, BS2): pick it in the menu on the Vet Opinions or Bloodstock Opinions screen, tap Post or Edit,
+  attach the PDF, and leave Approve now on so buyers can buy it right away. Delete opinion is on the
+  opinion's status card. The security rules already allowed staff to write opinions and their files.
+
 **Becoming the administrator (once):** sign in, open Account, enter the administrator code under
 Owner setup and tap Become administrator. This works only while there is no administrator yet; after
 that, the administrator can make others administrators on the People screen. Set the code (at least 6
@@ -53,7 +68,8 @@ repository report to a hip's Vet Report. Photos are shrunk to 2400 px JPEGs; fil
 Who can open them (`storage.rules`): opinion files, the vet or agent who posted them, staff and the
 administrator, and buyers who bought that opinion; vet report files, anyone signed in. The app never
 shares download links, so these rules apply every time a file is opened. Deploy rule changes with
-`firebase deploy --only storage`.
+`firebase deploy --only storage`. (Until `storage.rules` from October 2026 is deployed, deleting a sale
+leaves its uploaded walk videos and sale pictures in Storage; nothing points to them.)
 
 ## AI conformation check (sale walk video)
 Staff can ask the AI for a C grade from a hip's sale walk video: edit the hip (Hip Number button),

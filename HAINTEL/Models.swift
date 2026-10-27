@@ -33,6 +33,12 @@ struct VetReport: Codable, Hashable {
     var isEntered: Bool {
         !filed.isEmpty || !radiographNotes.isEmpty || !scopeNotes.isEmpty || !(attachments ?? []).isEmpty
     }
+
+    /// Staff wrote grades or notes. When only the PDF is attached, the screen shows the files instead
+    /// of default "Clean" grades nobody picked.
+    var hasSummary: Bool {
+        !radiographNotes.isEmpty || !scopeNotes.isEmpty || radiographs != .clean || scope != .clean
+    }
 }
 
 /// A PDF or image uploaded with an opinion or the vet report. The file lives in Firebase Storage at
@@ -130,6 +136,12 @@ struct Hip: Codable, Identifiable, Hashable {
         opinionsPending = pendingSlots.filter { $0 != slot }
         opinionsIn.removeAll { $0 == slot }
         if approved { opinionsIn.append(slot) }
+    }
+
+    /// The opinion was deleted.
+    mutating func markRemoved(_ slot: OpinionSlot) {
+        opinionsPending = pendingSlots.filter { $0 != slot }
+        opinionsIn.removeAll { $0 == slot }
     }
 
     var isGraded: Bool { conformationGrade != nil || pedigreeGrade != nil }
@@ -269,6 +281,20 @@ enum Role: String, Codable, Hashable {
 
     /// Roles people can ask for. The administrator approves them.
     static let requestable: [Role] = [.vet, .agent, .staff]
+
+    /// Every role, in the order the administrator picks from.
+    static let all: [Role] = [.buyer, .vet, .agent, .staff, .admin]
+
+    /// What someone with this role can do, for the administrator's People screens.
+    var abilities: String {
+        switch self {
+        case .buyer: "Browses sales and buys vet and bloodstock opinions."
+        case .vet: "Posts vet opinions on sales where they’re on the panel (Vet 1 or Vet 2)."
+        case .agent: "Posts bloodstock opinions on sales where they’re on the panel (BS1 or BS2)."
+        case .staff: "Adds and edits sales, hips and vet reports, posts opinions and approves them."
+        case .admin: "Everything staff do, plus adding and deleting people and deleting sales."
+        }
+    }
 }
 
 struct AppUser: Codable, Hashable {

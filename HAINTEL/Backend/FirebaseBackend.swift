@@ -12,6 +12,9 @@ import Foundation
 ///   sales/{saleID}                           Sale
 ///   sales/{saleID}/hips/{hipNumber}          Hip
 ///   sales/{saleID}/hips/{hipNumber}/opinions/{slot}   Opinion
+///
+/// Administrator tools (adding people, deleting sales and opinions) work within the security rules
+/// from the app itself, so they need no Cloud Function.
 final class FirebaseBackend: SaleBackend {
     let isDemo = false
     private let db = Firestore.firestore()
@@ -80,6 +83,77 @@ final class FirebaseBackend: SaleBackend {
 
     func setFeaturedSale(_ saleID: String) async throws {
         try await db.collection("config").document("app").setData(["currentSale": saleID], merge: true)
+    }
+
+    /// Deletes the files first, then the opinions and hips, and the sale itself last, so a delete that
+    /// stops halfway can simply be run again. Purchase records stay with the buyers' accounts.
+    func deleteSale(_ saleID: String) async throws {
+        let hipDocs = try await hipsRef(saleID).getDocuments().documents
+
+        // Every hip's opinions. Returned ones aren't listed on the hip, so each hip is checked.
+        var opinionDocs: [QueryDocumentSnapshot] = []
+        for start in stride(from: 0, to: hipDocs.count, by: 20) {
+            try await withThrowingTaskGroup(of: [QueryDocumentSnapshot].self) { group in
+                for hip in hipDocs[start..<min(start + 20, hipDocs.count)] {
+                    group.addTask { try await hip.reference.collection("opinions").getDocuments().documents }
+                }
+                for try await found in group { opinionDocs += found }
+            }
+        }
+
+        var files: [String] = []
+        for doc in hipDocs {
+            guard let hip = try? doc.data(as: Hip.self) else { continue }
+            files += (hip.vetReport.attachments ?? []).map(\.path)
+            // Sale pictures and walk videos uploaded in the app (not Vimeo or YouTube links).
+            if hip.photoURL?.host()?.contains("firebasestorage") == true {
+                files.append("sales/\(saleID)/hips/\(hip.number)/\(MediaKind.photo.fileName)")
+            }
+            if hip.walkVideoURL?.host()?.contains("firebasestorage") == true {
+                files.append("sales/\(saleID)/hips/\(hip.number)/\(MediaKind.walkVideo.fileName)")
+            }
+        }
+        for doc in opinionDocs {
+            files += ((try? doc.data(as: Opinion.self))?.attachments ?? []).map(\.path)
+        }
+        // A file that won't delete stays in Storage, but nothing points to it any more.
+        await deleteFiles(files)
+
+        try await deleteDocuments(opinionDocs.map(\.reference) + hipDocs.map(\.reference))
+
+        let config = db.collection("config").document("app")
+        if try await config.getDocument().get("currentSale") as? String == saleID {
+            try await config.updateData(["currentSale": FieldValue.delete()])
+        }
+        try await db.collection("sales").document(saleID).delete()
+    }
+
+    private func deleteFiles(_ paths: [String]) async {
+        for start in stride(from: 0, to: paths.count, by: 10) {
+            await withTaskGroup(of: Void.self) { group in
+                for path in paths[start..<min(start + 10, paths.count)] {
+                    group.addTask { try? await self.storage.reference(withPath: path).delete() }
+                }
+            }
+        }
+    }
+
+    /// 20 deletes per batch: each one's security rule reads the signed-in profile, and a batch may
+    /// read at most 20 documents. Up to 8 batches run at once.
+    private func deleteDocuments(_ refs: [DocumentReference]) async throws {
+        let batches = stride(from: 0, to: refs.count, by: 20).map { Array(refs[$0..<min($0 + 20, refs.count)]) }
+        for start in stride(from: 0, to: batches.count, by: 8) {
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                for chunk in batches[start..<min(start + 8, batches.count)] {
+                    group.addTask {
+                        let batch = self.db.batch()
+                        for ref in chunk { batch.deleteDocument(ref) }
+                        try await batch.commit()
+                    }
+                }
+                try await group.waitForAll()
+            }
+        }
     }
 
     func hipCount(saleID: String) async throws -> Int {
@@ -169,6 +243,57 @@ final class FirebaseBackend: SaleBackend {
         let _: Deleted = try await callFunction("deleteAccount", ["uid": uid], timeout: 60)
     }
 
+    /// Security rules let a person create only their own profile, as a buyer. So the new sign-in is made on a
+    /// second copy of Firebase that signs in as them (the administrator stays signed in here), writes their
+    /// buyer profile as them, and then the administrator gives them their role.
+    func addPerson(name: String, email: String, role: Role, password: String?) async throws -> AppUser {
+        let helper = try await Self.helperApp()
+        let helperAuth = Auth.auth(app: helper)
+        let typed = (password ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let result = try await helperAuth.createUser(withEmail: email,
+                                                     password: typed.isEmpty ? Self.randomPassword() : typed)
+        defer { try? helperAuth.signOut() }
+
+        var person = AppUser(uid: result.user.uid, name: name, role: .buyer, email: email)
+        do {
+            try await Firestore.firestore(app: helper).collection("users").document(person.uid)
+                .setData(Firestore.Encoder().encode(person))
+        } catch {
+            // Don't leave a sign-in with no profile behind.
+            try? await result.user.delete()
+            throw error
+        }
+        if role != .buyer {
+            try await db.collection("users").document(person.uid).updateData(["role": role.rawValue])
+            person.role = role
+        }
+        if typed.isEmpty { try await Auth.auth().sendPasswordReset(withEmail: email) }
+        return person
+    }
+
+    func sendPasswordReset(email: String) async throws {
+        try await Auth.auth().sendPasswordReset(withEmail: email)
+    }
+
+    /// The second Firebase app addPerson signs in on. Made once, on the main thread.
+    @MainActor private static func helperApp() throws -> FirebaseApp {
+        let name = "addPerson"
+        if let app = FirebaseApp.app(name: name) { return app }
+        guard let options = FirebaseApp.app()?.options else {
+            throw BackendError(message: "Firebase isn’t set up in this build.")
+        }
+        FirebaseApp.configure(name: name, options: options)
+        guard let app = FirebaseApp.app(name: name) else {
+            throw BackendError(message: "Couldn’t get ready to add people. Try again.")
+        }
+        return app
+    }
+
+    /// Never shown to anyone: the person picks their own password from the emailed link.
+    private static func randomPassword() -> String {
+        "\(UUID().uuidString)-\(UUID().uuidString)"
+    }
+
     func saveDevice(token: String, uid: String) async throws {
         try await db.collection("users").document(uid).collection("devices").document(token)
             .setData(["platform": "ios", "updatedAt": FieldValue.serverTimestamp()])
@@ -241,14 +366,26 @@ final class FirebaseBackend: SaleBackend {
         return snap.exists ? try snap.data(as: Opinion.self) : nil
     }
 
-    /// Writes the opinion as pending and moves it to the hip's approval queue, in one batch.
-    func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot) async throws {
-        var pending = opinion
-        pending.status = .pending
+    /// Writes the opinion and, in the same batch, moves its slot on the hip: to the approval queue
+    /// (pending), or straight to opinionsIn when staff approve it as they post it.
+    func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot, approved: Bool) async throws {
+        var saved = opinion
+        saved.status = approved ? .approved : .pending
+        let value = [slot.rawValue]
+        let moves: [String: Any] = approved
+            ? ["opinionsIn": FieldValue.arrayUnion(value), "opinionsPending": FieldValue.arrayRemove(value)]
+            : ["opinionsIn": FieldValue.arrayRemove(value), "opinionsPending": FieldValue.arrayUnion(value)]
         let batch = db.batch()
-        try batch.setData(from: pending, forDocument: opinionRef(saleID, hip, slot))
-        batch.updateData(["opinionsIn": FieldValue.arrayRemove([slot.rawValue]),
-                          "opinionsPending": FieldValue.arrayUnion([slot.rawValue])],
+        try batch.setData(from: saved, forDocument: opinionRef(saleID, hip, slot))
+        batch.updateData(moves, forDocument: hipsRef(saleID).document(String(hip)))
+        try await batch.commit()
+    }
+
+    func deleteOpinion(saleID: String, hip: Int, slot: OpinionSlot) async throws {
+        let value = [slot.rawValue]
+        let batch = db.batch()
+        batch.deleteDocument(opinionRef(saleID, hip, slot))
+        batch.updateData(["opinionsIn": FieldValue.arrayRemove(value), "opinionsPending": FieldValue.arrayRemove(value)],
                          forDocument: hipsRef(saleID).document(String(hip)))
         try await batch.commit()
     }

@@ -222,6 +222,33 @@ final class SaleStore {
         }
     }
 
+    /// Administrator: makes an account for someone else with their role. With no password they're emailed
+    /// a link to choose one. Returns the new person, or nil if it failed (errorMessage says why).
+    func addPerson(name: String, email: String, role: Role, password: String) async -> AppUser? {
+        guard isAdmin else { return nil }
+        var added: AppUser?
+        await attempt {
+            let person = try await backend.addPerson(
+                name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+                email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                role: role, password: password.isEmpty ? nil : password)
+            people.append(person)
+            people.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            added = person
+        }
+        return added
+    }
+
+    /// Emails a link to choose a new password (Forgot password, or the administrator resending it).
+    func sendPasswordReset(email: String) async -> Bool {
+        var sent = false
+        await attempt {
+            try await backend.sendPasswordReset(email: email.trimmingCharacters(in: .whitespacesAndNewlines))
+            sent = true
+        }
+        return sent
+    }
+
     /// Administrator: deletes the account for good. Returns whether it worked.
     func deleteAccount(_ person: AppUser) async -> Bool {
         guard isAdmin, person.uid != user?.uid else { return false }
@@ -314,10 +341,18 @@ final class SaleStore {
         isStaff || isAuthor(slot) || purchases.contains(purchaseID(slot, hip: hip))
     }
 
-    /// Staff edit everything except opinions; each vet and agent edits only their own slot.
+    /// Staff edit everything, including any slot's opinion (posting it for the vet or agent, say from
+    /// their PDF report); each vet and agent edits only their own slot.
     func canEdit(_ field: HipField) -> Bool {
-        if field.isOpinionGroup { return ownSlot(in: field) != nil }
+        if field.isOpinionGroup { return isStaff || ownSlot(in: field) != nil }
         return isStaff
+    }
+
+    /// The opinion the Post or Edit button works on: for staff the one picked on screen, for a vet or
+    /// agent their own.
+    func editableSlot(_ field: HipField, hip: Hip) -> OpinionSlot? {
+        guard field.isOpinionGroup else { return nil }
+        return isStaff ? selectedSlot(field, hip: hip) : ownSlot(in: field)
     }
 
     /// The signed-in vet's or agent's own slot under Vet Opinions or Bloodstock Opinions, if they have one.
@@ -340,14 +375,38 @@ final class SaleStore {
         }
     }
 
-    func save(_ opinion: Opinion, slot: OpinionSlot, hip: Hip) async {
+    /// Posts or edits an opinion. A vet's or agent's own goes to staff for approval; staff can approve
+    /// it as they post it (`approve`).
+    func save(_ opinion: Opinion, slot: OpinionSlot, hip: Hip, approve: Bool = false) async {
+        let approved = approve && isStaff
         await attempt {
-            try await backend.save(opinion: opinion, saleID: sale.id, hip: hip.number, slot: slot)
-            var pending = opinion
-            pending.status = .pending
-            opinions["\(hip.number)_\(slot.rawValue)"] = pending
-            if let i = hips.firstIndex(where: { $0.number == hip.number }) { hips[i].markPending(slot) }
+            try await backend.save(opinion: opinion, saleID: sale.id, hip: hip.number, slot: slot, approved: approved)
+            var saved = opinion
+            saved.status = approved ? .approved : .pending
+            opinions["\(hip.number)_\(slot.rawValue)"] = saved
+            if let i = hips.firstIndex(where: { $0.number == hip.number }) {
+                if approved { hips[i].markReviewed(slot, approved: true) } else { hips[i].markPending(slot) }
+            }
         }
+    }
+
+    /// Staff: deletes an opinion and its attached files. Returns whether it worked.
+    func deleteOpinion(_ slot: OpinionSlot, hip: Hip) async -> Bool {
+        guard isStaff else { return false }
+        let key = "\(hip.number)_\(slot.rawValue)"
+        var files: [Attachment] = []
+        var deleted = false
+        await attempt {
+            var existing = opinions[key]
+            if existing == nil { existing = try await backend.loadOpinion(saleID: sale.id, hip: hip.number, slot: slot) }
+            files = existing?.attachments ?? []
+            try await backend.deleteOpinion(saleID: sale.id, hip: hip.number, slot: slot)
+            opinions[key] = nil
+            if let i = hips.firstIndex(where: { $0.number == hip.number }) { hips[i].markRemoved(slot) }
+            deleted = true
+        }
+        if deleted { await deleteAttachments(files) }
+        return deleted
     }
 
     /// Staff only: approve an opinion so buyers can see it, or return it to its author.
@@ -413,20 +472,20 @@ final class SaleStore {
     }
 
     /// The opinions under a button that this user can pick in its menu: approved ones for everyone,
-    /// plus their own (posted or not) for a vet or agent, plus ones waiting for approval for staff.
+    /// plus their own (posted or not) for a vet or agent, plus every slot for staff (posted, waiting,
+    /// returned or empty), so they can post, approve or delete any of them.
     func availableSlots(_ field: HipField, hip: Hip) -> [OpinionSlot] {
-        field.slots.filter { slot in
-            hip.opinionsIn.contains(slot) || isAuthor(slot) || (isStaff && hip.pendingSlots.contains(slot))
-        }
+        if isStaff { return field.slots }
+        return field.slots.filter { hip.opinionsIn.contains($0) || isAuthor($0) }
     }
 
     /// The opinion shown on a Vet Opinions or Bloodstock Opinions screen: the one picked in its menu,
-    /// else the user's own, else the first one available.
+    /// else the user's own, else the first posted one, else the first one available.
     func selectedSlot(_ field: HipField, hip: Hip) -> OpinionSlot? {
         let available = availableSlots(field, hip: hip)
         if let picked = selectedSlots[field], available.contains(picked) { return picked }
         if let own = ownSlot(in: field), available.contains(own) { return own }
-        return available.first
+        return available.first { hip.opinionsIn.contains($0) || hip.pendingSlots.contains($0) } ?? available.first
     }
 
     /// Where one opinion stands for this user, e.g. "Clean", "#4 of 186", "Unlock $25", "Not posted yet".
@@ -435,7 +494,7 @@ final class SaleStore {
             return (isStaff ? "Needs approval" : "Waiting for approval", false)
         }
         guard hip.opinionsIn.contains(slot) else {
-            if isAuthor(slot), opinion(slot, hip: hip)?.reviewStatus == .rejected { return ("Returned by Backring Buyer", false) }
+            if isAuthor(slot) || isStaff, opinion(slot, hip: hip)?.reviewStatus == .rejected { return ("Returned by Backring Buyer", false) }
             return ("Not posted yet", false)
         }
         guard canRead(slot, hip: hip) else { return ("Unlock \(price(slot))", true) }
@@ -505,6 +564,31 @@ final class SaleStore {
             saved = true
         }
         return saved
+    }
+
+    /// Administrator: deletes a sale with all its hips, vet reports, opinions and files. Returns whether it worked.
+    func deleteSale(_ target: Sale) async -> Bool {
+        guard isAdmin else { return false }
+        var deleted = false
+        await attempt {
+            try await backend.deleteSale(target.id)
+            sales.removeAll { $0.id == target.id }
+            hipCounts[target.id] = nil
+            if featuredSaleID == target.id { featuredSaleID = nil }
+            if sale.id == target.id {
+                hips = []
+                opinions = [:]
+                currentHipNumber = 0
+            }
+            deleted = true
+        }
+        return deleted
+    }
+
+    /// What deleting a sale takes with it, for the confirmation.
+    func deleteSaleWarning(_ target: Sale) -> String {
+        let count = hipCounts[target.id].map { $0 == 1 ? "its 1 hip" : "its \($0.formatted()) hips" } ?? "all its hips"
+        return "\(target.name) and \(count) are deleted for good, with every vet report, vet and bloodstock opinion and attached PDF. Buyers can no longer open opinions they bought in this sale."
     }
 
     // MARK: Hips (staff)
@@ -619,7 +703,7 @@ extension SaleStore {
         let summary: String
         switch field {
         case .hipNumber: summary = "#\(hip.number)"
-        case .vetReport: summary = !hip.vetReport.isEntered ? "Not entered" : worst(hip.vetReport.radiographs, hip.vetReport.scope).label
+        case .vetReport: summary = vetReportSummary(hip.vetReport)
         case .pedigree:
             let grade: String? = hip.pedigreeGrade.map { "P \(Hip.gradeText($0))/5" }
             let sire: String? = hip.pedigree.sire.isEmpty ? nil : "by \(hip.pedigree.sire)"
@@ -655,6 +739,16 @@ extension SaleStore {
             return ("\(count) · unlock \(locked.count > 1 ? "from " : "")\(price(lockedSlot))", true)
         }
         return ("\(count) · \(posted.count == 1 ? "unlocked" : "all unlocked")", false)
+    }
+
+    /// The worst grade staff gave, or what's attached when they only uploaded the report.
+    private func vetReportSummary(_ report: VetReport) -> String {
+        guard report.isEntered else { return "Not entered" }
+        if report.hasSummary { return worst(report.radiographs, report.scope).label }
+        let files = report.attachments ?? []
+        if files.isEmpty { return report.filed.isEmpty ? "Entered" : "Filed \(report.filed)" }
+        if files.count == 1 { return files[0].isPDF ? "1 PDF" : "1 file" }
+        return files.allSatisfy(\.isPDF) ? "\(files.count) PDFs" : "\(files.count) files"
     }
 
     private func worst(_ a: Grade, _ b: Grade) -> Grade {

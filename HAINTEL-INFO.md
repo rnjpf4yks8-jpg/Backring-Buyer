@@ -9,7 +9,9 @@
 
 ## Roles
 - Everyone signs up as a buyer; Vet / Bloodstock agent / Staff are requests the administrator approves
-- Administrator: People screen (people button on the sales list) to approve, decline, change roles, delete accounts
+- Administrator: People screen (people button on the sales list) to add people, approve, decline, change roles, delete accounts
+- Administrator: delete a sale by pressing and holding it on the sales list
+- Staff and administrator: post, edit or delete any vet or bloodstock opinion (with PDF) and add or delete vet report PDFs
 - Push notifications for requests and decisions: APNS_KEY and APNS_KEY_ID Firebase secrets
 - Becoming administrator (owner, once): Account → Owner setup → administrator code (STAFF_CODE secret)
 

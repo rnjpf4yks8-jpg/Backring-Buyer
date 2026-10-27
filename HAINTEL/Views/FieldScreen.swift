@@ -29,7 +29,7 @@ struct FieldScreen: View {
                     for slot in field.slots { await store.loadOpinion(slot, hip: hip) }
                 }
                 .sheet(isPresented: $editing) {
-                    EditSheet(field: field, hip: hip, isNew: false, slot: store.ownSlot(in: field))
+                    EditSheet(field: field, hip: hip, isNew: false, slot: store.editableSlot(field, hip: hip))
                 }
             } else {
                 ContentUnavailableView("No hip selected", systemImage: "number")
@@ -53,10 +53,12 @@ struct FieldScreen: View {
         .safeAreaInset(edge: .bottom) { pager }
     }
 
-    /// On Vet Opinions and Bloodstock Opinions, the button posts or edits the signed-in vet's or agent's own opinion.
+    /// On Vet Opinions and Bloodstock Opinions, the button posts or edits the signed-in vet's or agent's own
+    /// opinion, or for staff the one picked on screen.
     private var editLabel: String {
-        guard let slot = store.ownSlot(in: field), let hip = store.currentHip else { return "Edit" }
-        return hip.opinionsIn.contains(slot) || hip.pendingSlots.contains(slot) ? "Edit" : "Post"
+        guard let hip = store.currentHip, let slot = store.editableSlot(field, hip: hip) else { return "Edit" }
+        let posted = hip.opinionsIn.contains(slot) || hip.pendingSlots.contains(slot) || store.opinion(slot, hip: hip) != nil
+        return posted ? "Edit" : "Post"
     }
 
     private var pager: some View {

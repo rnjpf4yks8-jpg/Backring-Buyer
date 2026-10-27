@@ -14,6 +14,7 @@ struct AccountView: View {
     @State private var askFor: Role = .vet
     @State private var adminCode = ""
     @State private var claiming = false
+    @State private var resetSent = false
 
     var body: some View {
         NavigationStack {
@@ -44,7 +45,7 @@ struct AccountView: View {
                                 }
                             }
                         } footer: {
-                            Text("Approve or decline vets, bloodstock agents and staff, change roles, or delete accounts.")
+                            Text("Add people, approve or decline vets, bloodstock agents and staff, change roles, or delete accounts. Delete a sale by pressing and holding it on the sales list.")
                         }
                     }
                 }
@@ -127,6 +128,13 @@ struct AccountView: View {
                     if working { ProgressView() } else { Text(creating ? "Create account" : "Sign in") }
                 }
                 .disabled(working || email.isEmpty || password.count < 6 || (creating && name.isEmpty))
+                if !creating {
+                    Button(resetSent ? "Password email sent. Check your inbox (and junk mail)." : "Forgot password? Email me a link") {
+                        Task { resetSent = await store.sendPasswordReset(email: email) }
+                    }
+                    .font(.footnote)
+                    .disabled(resetSent || !email.contains("@"))
+                }
             }
         }
     }

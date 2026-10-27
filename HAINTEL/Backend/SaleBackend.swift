@@ -54,6 +54,11 @@ protocol SaleBackend {
     func decide(uid: String, role: Role, approve: Bool) async throws
     /// Administrator: deletes a person's sign-in and profile and takes them off every panel.
     func deleteAccount(uid: String) async throws
+    /// Administrator: makes a sign-in and profile for someone else, with their role. With no `password`
+    /// a random one is set and they're emailed a link to choose their own.
+    func addPerson(name: String, email: String, role: Role, password: String?) async throws -> AppUser
+    /// Emails a link to choose a new password.
+    func sendPasswordReset(email: String) async throws
     /// The phone's push notification token for this person (removed on sign-out).
     func saveDevice(token: String, uid: String) async throws
     func removeDevice(token: String, uid: String) async throws
@@ -66,6 +71,8 @@ protocol SaleBackend {
     func save(sale: Sale) async throws
     /// Staff: marks a sale NOW (config/app.currentSale).
     func setFeaturedSale(_ saleID: String) async throws
+    /// Administrator: deletes a sale with its hips, vet reports, opinions and their files.
+    func deleteSale(_ saleID: String) async throws
     func hipCount(saleID: String) async throws -> Int
     func loadHips(saleID: String) async throws -> [Hip]
     func save(hip: Hip, saleID: String) async throws
@@ -83,10 +90,13 @@ protocol SaleBackend {
     func suggestConformation(saleID: String, hip: Int) async throws -> ConformationSuggestion
 
     func loadOpinion(saleID: String, hip: Int, slot: OpinionSlot) async throws -> Opinion?
-    /// The author posts or edits an opinion. It waits for Backring Buyer approval before buyers see it.
-    func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot) async throws
+    /// The author posts or edits an opinion; it waits for Backring Buyer approval before buyers see it.
+    /// Staff can post or edit any slot's opinion and approve it at the same time (`approved`).
+    func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot, approved: Bool) async throws
     /// Staff approve (buyers can see it) or return (hidden) a posted opinion.
     func review(approve: Bool, saleID: String, hip: Int, slot: OpinionSlot) async throws
+    /// Staff: deletes an opinion. Its files are deleted separately (deleteAttachment).
+    func deleteOpinion(saleID: String, hip: Int, slot: OpinionSlot) async throws
 
     /// Staff only: everyone with an account, for picking a sale's vets and agents.
     func loadPeople() async throws -> [AppUser]
@@ -108,7 +118,7 @@ final class SampleBackend: SaleBackend {
     let isDemo = true
     private var hipsBySale = [SampleData.sale.id: SampleData.hips]
     private var sales = SampleData.sales
-    private var featured = SampleData.sale.id
+    private var featured: String? = SampleData.sale.id
     private var people = SampleData.people
     private var opinions = SampleData.opinions
     private var purchases: [String: Set<String>] = [:]
@@ -148,6 +158,17 @@ final class SampleBackend: SaleBackend {
         }
     }
 
+    func addPerson(name: String, email: String, role: Role, password: String?) async throws -> AppUser {
+        guard !people.contains(where: { $0.email?.lowercased() == email.lowercased() }) else {
+            throw BackendError(message: "The email address is already in use by another account.")
+        }
+        let person = AppUser(uid: "demo-\(UUID().uuidString.prefix(8))", name: name, role: role, email: email)
+        people.append(person)
+        return person
+    }
+
+    func sendPasswordReset(email: String) async throws {}
+
     func saveDevice(token: String, uid: String) async throws {}
     func removeDevice(token: String, uid: String) async throws {}
 
@@ -168,6 +189,14 @@ final class SampleBackend: SaleBackend {
     }
 
     func setFeaturedSale(_ saleID: String) async throws { featured = saleID }
+
+    func deleteSale(_ saleID: String) async throws {
+        sales.removeAll { $0.id == saleID }
+        hipsBySale[saleID] = nil
+        // Demo opinions all belong to the sample sale.
+        if saleID == SampleData.sale.id { opinions = [:] }
+        if featured == saleID { featured = nil }
+    }
 
     func hipCount(saleID: String) async throws -> Int { hipsBySale[saleID]?.count ?? 0 }
 
@@ -241,10 +270,19 @@ final class SampleBackend: SaleBackend {
         opinions["\(hip)_\(slot.rawValue)"]
     }
 
-    func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot) async throws {
-        opinions["\(hip)_\(slot.rawValue)"] = opinion
+    func save(opinion: Opinion, saleID: String, hip: Int, slot: OpinionSlot, approved: Bool) async throws {
+        var saved = opinion
+        saved.status = approved ? .approved : .pending
+        opinions["\(hip)_\(slot.rawValue)"] = saved
         guard let i = hipsBySale[saleID]?.firstIndex(where: { $0.number == hip }), var entry = hipsBySale[saleID]?[i] else { return }
-        entry.markPending(slot)
+        if approved { entry.markReviewed(slot, approved: true) } else { entry.markPending(slot) }
+        hipsBySale[saleID]?[i] = entry
+    }
+
+    func deleteOpinion(saleID: String, hip: Int, slot: OpinionSlot) async throws {
+        opinions["\(hip)_\(slot.rawValue)"] = nil
+        guard let i = hipsBySale[saleID]?.firstIndex(where: { $0.number == hip }), var entry = hipsBySale[saleID]?[i] else { return }
+        entry.markRemoved(slot)
         hipsBySale[saleID]?[i] = entry
     }
 

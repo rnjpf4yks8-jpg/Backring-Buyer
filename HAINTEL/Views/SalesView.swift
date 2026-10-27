@@ -27,6 +27,8 @@ struct SalesIndexView: View {
     @State private var showAccount = false
     @State private var addingSale = false
     @State private var editingSale: Sale?
+    @State private var deletingSale: Sale?
+    @State private var deleting = false
     let open: (String) -> Void
 
     var body: some View {
@@ -53,10 +55,17 @@ struct SalesIndexView: View {
                         if store.isStaff {
                             Button { editingSale = sale } label: { Label("Edit sale", systemImage: "pencil") }
                         }
+                        if store.isAdmin {
+                            Button(role: .destructive) { deletingSale = sale } label: {
+                                Label("Delete sale", systemImage: "trash")
+                            }
+                        }
                     }
                 }
                 if store.isStaff, !store.sales.isEmpty {
-                    Text("Press and hold a sale to change its name, company or date.")
+                    Text(store.isAdmin
+                         ? "Press and hold a sale to edit or delete it."
+                         : "Press and hold a sale to change its name, company or date.")
                         .font(Theme.sans(13)).foregroundStyle(Theme.muted)
                         .padding(.top, 4)
                 }
@@ -118,6 +127,41 @@ struct SalesIndexView: View {
         .sheet(isPresented: $showAccount) { AccountView() }
         .sheet(isPresented: $addingSale) { SaleSheet(editing: nil) }
         .sheet(item: $editingSale) { SaleSheet(editing: $0) }
+        .confirmationDialog("Delete this sale?",
+                            isPresented: Binding(get: { deletingSale != nil }, set: { if !$0 { deletingSale = nil } }),
+                            titleVisibility: .visible, presenting: deletingSale) { sale in
+            Button("Delete \(sale.name)", role: .destructive) {
+                deleting = true
+                Task {
+                    _ = await store.deleteSale(sale)
+                    deleting = false
+                }
+            }
+        } message: { sale in
+            Text("\(store.deleteSaleWarning(sale)) This can’t be undone.")
+        }
+        .overlay {
+            if deleting { DeletingOverlay(text: "Deleting sale…") }
+        }
+        .allowsHitTesting(!deleting)
+    }
+}
+
+/// Shown while a delete that can take a while (a whole sale) runs.
+struct DeletingOverlay: View {
+    let text: String
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.25).ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView().controlSize(.large)
+                Text(text).font(Theme.sans(15, .semibold)).foregroundStyle(Theme.ink)
+                Text("Keep the app open until it’s done.").font(Theme.sans(13)).foregroundStyle(Theme.slate)
+            }
+            .padding(24)
+            .background(.white, in: RoundedRectangle(cornerRadius: 14))
+        }
     }
 }
 

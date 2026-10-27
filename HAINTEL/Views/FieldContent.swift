@@ -111,7 +111,9 @@ private struct OpinionContent: View {
                 Text("Not posted yet").font(Theme.sans(17, .semibold)).foregroundStyle(Theme.ink)
                 Text(store.isAuthor(slot)
                      ? "Tap Post to add your opinion on this hip. Backring Buyer approves it before buyers can see it."
-                     : "\(member?.name ?? "The \(slot.isVet ? "vet" : "agent")") hasn’t posted an opinion on this hip yet.")
+                     : store.isStaff
+                        ? "\(member?.name ?? slot.title) hasn’t posted on this hip. Tap Post to add it yourself, for example from their PDF report."
+                        : "\(member?.name ?? "The \(slot.isVet ? "vet" : "agent")") hasn’t posted an opinion on this hip yet.")
                     .font(Theme.sans(15)).foregroundStyle(Theme.slate)
             }
         } else if !store.canRead(slot, hip: hip) {
@@ -133,13 +135,14 @@ private struct OpinionContent: View {
     }
 }
 
-/// Where an opinion stands in Backring Buyer's review. Staff approve or return pending opinions here.
+/// Where an opinion stands in Backring Buyer's review. Staff approve, return or delete opinions here.
 private struct ReviewBanner: View {
     @Environment(SaleStore.self) private var store
     let status: OpinionStatus
     let slot: OpinionSlot
     let hip: Hip
     @State private var working = false
+    @State private var confirmDelete = false
 
     var body: some View {
         Card {
@@ -173,6 +176,25 @@ private struct ReviewBanner: View {
                 Text("Edit and post it again to resubmit.")
                     .font(Theme.sans(14)).foregroundStyle(Theme.slate)
             }
+            if store.isStaff {
+                Button(role: .destructive) { confirmDelete = true } label: {
+                    Label("Delete opinion", systemImage: "trash")
+                }
+                .font(Theme.sans(15))
+                .disabled(working)
+                .padding(.top, 2)
+            }
+        }
+        .confirmationDialog("Delete this opinion?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete opinion", role: .destructive) {
+                working = true
+                Task {
+                    _ = await store.deleteOpinion(slot, hip: hip)
+                    working = false
+                }
+            }
+        } message: {
+            Text("Removes \(store.sale.member(slot)?.name ?? slot.title)’s opinion on hip \(hip.number) and its attached files. Buyers who bought it can’t open it any more. This can’t be undone.")
         }
     }
 
@@ -318,12 +340,18 @@ private struct VetReportPanel: View {
         }
     }
 
+    /// With only the PDF uploaded, the files come first and there are no grades to show.
     private var entered: some View {
         VStack(spacing: 12) {
-            section("Radiographs", grade: report.radiographs, notes: report.radiographNotes)
-            section("Throat scope", grade: report.scope, notes: report.scopeNotes)
-            Card { InfoRow(label: "Filed in repository", value: report.filed) }
-            AttachmentList(attachments: report.attachments ?? [])
+            if !report.hasSummary { AttachmentList(attachments: report.attachments ?? []) }
+            if report.hasSummary {
+                section("Radiographs", grade: report.radiographs, notes: report.radiographNotes)
+                section("Throat scope", grade: report.scope, notes: report.scopeNotes)
+            }
+            if !report.filed.isEmpty {
+                Card { InfoRow(label: "Filed in repository", value: report.filed) }
+            }
+            if report.hasSummary { AttachmentList(attachments: report.attachments ?? []) }
         }
     }
 

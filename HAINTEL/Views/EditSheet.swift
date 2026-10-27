@@ -1,14 +1,16 @@
 import PhotosUI
 import SwiftUI
 
-/// Entry form for one button. Staff edit hip data; each vet and bloodstock agent posts only their own opinion.
+/// Entry form for one button. Staff edit hip data and can post any slot's opinion; each vet and
+/// bloodstock agent posts only their own.
 struct EditSheet: View {
     @Environment(SaleStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let field: HipField
     let original: Hip
     let isNew: Bool
-    /// On Vet Opinions and Bloodstock Opinions: the opinion being posted (the signed-in vet's or agent's own).
+    /// On Vet Opinions and Bloodstock Opinions: the opinion being posted (the signed-in vet's or agent's
+    /// own, or for staff the one picked on screen).
     let slot: OpinionSlot?
 
     @State private var draft: Hip
@@ -30,6 +32,9 @@ struct EditSheet: View {
     @State private var uploadedAttachments: [Attachment] = []
     @State private var savedAttachments: [Attachment] = []
     @State private var attachmentsBusy = false
+    /// Staff posting an opinion: buyers can buy it right away, without a separate approval.
+    @State private var approveNow = true
+    @State private var confirmDeleteReport = false
 
     init(field: HipField, hip: Hip, isNew: Bool, slot: OpinionSlot? = nil) {
         self.field = field
@@ -89,6 +94,11 @@ struct EditSheet: View {
             }
             .interactiveDismissDisabled(attachmentsBusy || !uploadedAttachments.isEmpty)
             .onAppear(perform: loadOpinion)
+            .confirmationDialog("Delete this vet report?", isPresented: $confirmDeleteReport, titleVisibility: .visible) {
+                Button("Delete vet report", role: .destructive) { Task { await deleteReport() } }
+            } message: {
+                Text("Removes hip \(original.number)’s grades, notes and every attached PDF and image. This can’t be undone.")
+            }
         }
     }
 
@@ -240,7 +250,17 @@ struct EditSheet: View {
                                      set: { draft.vetReport.attachments = $0.isEmpty ? nil : $0 }),
                 uploaded: $uploadedAttachments, busy: $attachmentsBusy,
                 folder: .vetReport(saleID: store.sale.id, hip: original.number),
-                footer: "The repository report, radiographs or scope images, as PDF or photos. Anyone signed in can open them.")
+                footer: "The repository report, radiographs or scope images, as PDF or photos. Anyone signed in can open them. With a PDF attached, the grades and notes above are optional.")
+            if original.vetReport.isEntered {
+                Section {
+                    Button(role: .destructive) { confirmDeleteReport = true } label: {
+                        Label("Delete vet report", systemImage: "trash")
+                    }
+                    .disabled(saving || attachmentsBusy)
+                } footer: {
+                    Text("Takes the whole report off this hip, files included. To remove one file, swipe left on it above and tap Save.")
+                }
+            }
         }
     }
 
@@ -325,6 +345,7 @@ struct EditSheet: View {
 
     private var vetOpinion: some View {
         Group {
+            postingFor
             Section {
                 Picker("Based on", selection: Binding(
                     get: { opinion.basis ?? .repository }, set: { opinion.basis = $0 })) {
@@ -343,6 +364,7 @@ struct EditSheet: View {
 
     private var agentOpinion: some View {
         Group {
+            postingFor
             Section {
                 LabeledContent("Rank") {
                     TextField("1", value: Binding(get: { opinion.rank ?? 1 }, set: { opinion.rank = $0 }), format: .number)
@@ -365,7 +387,30 @@ struct EditSheet: View {
         }
     }
 
-    /// The vet's or agent's own report files. Only the author posts here.
+    /// Staff posting or editing a vet's or agent's opinion for them: whose it is, and whether buyers can
+    /// buy it straight away.
+    @ViewBuilder
+    private var postingFor: some View {
+        if let slot, store.isStaff {
+            let member = store.sale.member(slot)
+            Section {
+                if !store.isAuthor(slot) {
+                    LabeledContent("Opinion", value: member.map { "\($0.name) · \(slot.title)" } ?? slot.title)
+                }
+                Toggle("Approve now", isOn: $approveNow)
+            } header: {
+                Text("Posting as Backring Buyer")
+            } footer: {
+                Text(member == nil
+                     ? "No one is on this sale’s panel as \(slot.title), so buyers see “\(slot.title)” as the name. Add them on the sale’s Panel screen to show their name."
+                     : approveNow
+                        ? "Buyers can buy it as soon as you post it."
+                        : "It waits in Approvals until someone approves it.")
+            }
+        }
+    }
+
+    /// The opinion's report files: the author's own, or the PDF staff post for them.
     @ViewBuilder
     private var opinionAttachments: some View {
         if let slot {
@@ -374,7 +419,9 @@ struct EditSheet: View {
                                      set: { opinion.attachments = $0.isEmpty ? nil : $0 }),
                 uploaded: $uploadedAttachments, busy: $attachmentsBusy,
                 folder: .opinion(saleID: store.sale.id, hip: original.number, slot: slot),
-                footer: "Your written report, radiographs or scope images, as PDF or photos. Buyers can open them once they’ve bought your opinion.")
+                footer: store.isAuthor(slot)
+                    ? "Your written report, radiographs or scope images, as PDF or photos. Buyers can open them once they’ve bought your opinion."
+                    : "The \(slot.isVet ? "vet’s" : "agent’s") report as a PDF (or photos). Buyers can open it once they’ve bought this opinion.")
         }
     }
 
@@ -402,6 +449,15 @@ struct EditSheet: View {
         if let existing = store.opinion(slot, hip: original) {
             opinion = existing
             savedAttachments = existing.attachments ?? []
+        } else if original.opinionsIn.contains(slot) || original.pendingSlots.contains(slot) {
+            // Posted but not downloaded yet: fetch it rather than start a blank one over it.
+            Task {
+                await store.loadOpinion(slot, hip: original)
+                if let found = store.opinion(slot, hip: original) {
+                    opinion = found
+                    savedAttachments = found.attachments ?? []
+                }
+            }
         } else {
             opinion = slot.isVet
                 ? Opinion(date: today, basis: .repository, grade: .clean)
@@ -447,15 +503,16 @@ struct EditSheet: View {
         problem = nil
         if field.isOpinionGroup {
             guard let slot else {
-                problem = "Only the vet or agent on this sale’s panel can post here."
+                problem = "Only the vet or agent on this sale’s panel, or Backring Buyer staff, can post here."
                 return
             }
-            guard !opinion.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                problem = "Write your opinion before posting."
+            let hasNotes = !opinion.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            guard hasNotes || !(opinion.attachments ?? []).isEmpty else {
+                problem = "Write the opinion or attach its PDF before posting."
                 return
             }
             saving = true
-            await store.save(opinion, slot: slot, hip: original)
+            await store.save(opinion, slot: slot, hip: original, approve: store.isStaff && approveNow)
         } else {
             guard draft.number > 0 else {
                 problem = "Enter a hip number."
@@ -495,6 +552,14 @@ struct EditSheet: View {
         } else {
             problem = store.errorMessage
         }
+    }
+
+    /// Takes the whole vet report off the hip; save() then deletes the files it had.
+    private func deleteReport() async {
+        await store.deleteAttachments(uploadedAttachments)
+        uploadedAttachments = []
+        draft.vetReport = VetReport()
+        await save()
     }
 
     /// A grade typed by staff. Blank is valid and means not graded; otherwise 1 to `max` in half points.

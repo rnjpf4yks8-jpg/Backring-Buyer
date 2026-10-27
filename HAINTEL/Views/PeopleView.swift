@@ -1,16 +1,25 @@
 import SwiftUI
 
-/// Administrator only: approve or decline people asking to be vets, bloodstock agents or staff,
-/// change anyone's role, and delete accounts.
+/// Administrator only: add people, approve or decline people asking to be vets, bloodstock agents or
+/// staff, change anyone's role, and delete accounts.
 struct PeopleView: View {
     @Environment(SaleStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
     @State private var working: Set<String> = []
+    @State private var adding = false
 
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    Button { adding = true } label: {
+                        Label("Add a person", systemImage: "person.badge.plus")
+                    }
+                } footer: {
+                    Text("Make an account for a vet, bloodstock agent, staff member or buyer yourself, with their role. They get an email to set their password.")
+                }
+
                 if store.roleRequests.isEmpty {
                     Section("Requests") {
                         Text("No one is waiting for approval.").foregroundStyle(Theme.slate)
@@ -44,6 +53,7 @@ struct PeopleView: View {
             }
             .overlay(alignment: .bottom) { ErrorBanner() }
             .task { await store.loadPeople() }
+            .sheet(isPresented: $adding) { AddPersonSheet() }
         }
     }
 
@@ -121,8 +131,8 @@ private struct PersonDetail: View {
     let uid: String
     @State private var confirmDelete = false
     @State private var deleting = false
-
-    private let roles: [Role] = [.buyer, .vet, .agent, .staff, .admin]
+    @State private var sendingReset = false
+    @State private var resetSent = false
 
     var body: some View {
         Form {
@@ -150,13 +160,36 @@ private struct PersonDetail: View {
                     Picker("Role", selection: Binding(
                         get: { person.role },
                         set: { role in Task { await store.changeRole(of: person, to: role) } })) {
-                        ForEach(roles, id: \.self) { Text($0.label).tag($0) }
+                        ForEach(Role.all, id: \.self) { Text($0.label).tag($0) }
                     }
                     .disabled(isYou)
                 } footer: {
                     Text(isYou
                          ? "You can’t change your own role here."
-                         : "Change it to Buyer to take away vet, agent or staff access. Administrators can do everything you can.")
+                         : "\(person.role.abilities) Change it to Buyer to take away vet, agent or staff access.")
+                }
+
+                if !isYou, let email = person.email, !email.isEmpty {
+                    Section {
+                        Button {
+                            sendingReset = true
+                            Task {
+                                resetSent = await store.sendPasswordReset(email: email)
+                                sendingReset = false
+                            }
+                        } label: {
+                            if sendingReset {
+                                ProgressView()
+                            } else if resetSent {
+                                Label("Password email sent", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.green)
+                            } else {
+                                Label("Email a link to set their password", systemImage: "envelope")
+                            }
+                        }
+                        .disabled(sendingReset || resetSent)
+                    } footer: {
+                        Text("For someone you added who didn’t get the first email, or who forgot their password. Ask them to check junk mail.")
+                    }
                 }
 
                 if !isYou {
@@ -191,5 +224,148 @@ private struct PersonDetail: View {
         }
         .navigationTitle("Person")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Administrator: makes an account for someone else, with their role, so they don't have to sign up
+/// and wait for approval. They get an email to choose their password, or the administrator gives them one.
+struct AddPersonSheet: View {
+    @Environment(SaleStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var email = ""
+    @State private var role: Role = .vet
+    @State private var password = ""
+    @State private var triedAdding = false
+    @State private var working = false
+    @State private var problem: String?
+    @State private var added: AppUser?
+    @State private var emailed = false
+
+    private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var trimmedEmail: String { email.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var emailLooksRight: Bool {
+        let parts = trimmedEmail.split(separator: "@")
+        return parts.count == 2 && parts[1].contains(".") && !trimmedEmail.contains(" ")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let added {
+                    Section {
+                        Label("\(added.name) is set up as \(asWho(added.role)).", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(Theme.green)
+                        Text(emailed
+                             ? "They’ll get an email with a link to choose their password (ask them to check junk mail). Then they sign in on the Account screen with \(added.email ?? "their email")."
+                             : "Give them the password you typed. They sign in on the Account screen with \(added.email ?? "their email").")
+                            .foregroundStyle(Theme.slate)
+                        if added.role == .vet || added.role == .agent {
+                            Text("To have them post on a sale, open the sale and put them on its Panel (Vet 1, Vet 2, BS1 or BS2).")
+                                .foregroundStyle(Theme.slate)
+                        }
+                    }
+                    Section {
+                        Button("Add another person") { reset() }
+                    }
+                } else {
+                    Section {
+                        TextField("Name, e.g. Dr. Jane Smith", text: $name)
+                            .textContentType(.name)
+                            .textInputAutocapitalization(.words)
+                        if triedAdding && trimmedName.isEmpty {
+                            Text("Enter their name.").font(Theme.sans(14)).foregroundStyle(Theme.red)
+                        }
+                        TextField("Email", text: $email)
+                            .textContentType(.emailAddress)
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        if triedAdding && !emailLooksRight {
+                            Text("Enter their email address.").font(Theme.sans(14)).foregroundStyle(Theme.red)
+                        }
+                    } header: {
+                        Text("Person")
+                    }
+
+                    Section {
+                        Picker("Role", selection: $role) {
+                            ForEach(Role.all, id: \.self) { Text($0.label).tag($0) }
+                        }
+                    } footer: {
+                        Text(role.abilities)
+                    }
+
+                    Section {
+                        SecureField("Password (optional)", text: $password)
+                            .textContentType(.newPassword)
+                        if triedAdding && !password.isEmpty && password.count < 6 {
+                            Text("Passwords are at least 6 characters.").font(Theme.sans(14)).foregroundStyle(Theme.red)
+                        }
+                    } footer: {
+                        Text("Leave blank and they’ll get an email to choose their own password. Or type one (at least 6 characters) to give them yourself.")
+                    }
+
+                    if let problem {
+                        Section { Text(problem).foregroundStyle(Theme.red) }
+                    }
+                }
+            }
+            .navigationTitle("Add person")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if added == nil {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) {
+                        if working { ProgressView() } else { Button("Add") { add() } }
+                    }
+                } else {
+                    ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                }
+            }
+            .interactiveDismissDisabled(working)
+        }
+    }
+
+    private func add() {
+        triedAdding = true
+        problem = nil
+        guard !trimmedName.isEmpty, emailLooksRight, password.isEmpty || password.count >= 6 else { return }
+        if store.people.contains(where: { $0.email?.lowercased() == trimmedEmail.lowercased() }) {
+            problem = "\(trimmedEmail) already has an account. Find them under Everyone to change their role."
+            return
+        }
+        working = true
+        Task {
+            let person = await store.addPerson(name: trimmedName, email: trimmedEmail, role: role, password: password)
+            working = false
+            if let person {
+                emailed = password.isEmpty
+                added = person
+            } else {
+                problem = store.errorMessage ?? "Couldn’t add them. Try again."
+                store.errorMessage = nil
+            }
+        }
+    }
+
+    private func asWho(_ role: Role) -> String {
+        switch role {
+        case .buyer: "a buyer"
+        case .vet: "a vet"
+        case .agent: "a bloodstock agent"
+        case .staff: "Backring Buyer staff"
+        case .admin: "an administrator"
+        }
+    }
+
+    private func reset() {
+        name = ""
+        email = ""
+        password = ""
+        role = .vet
+        triedAdding = false
+        problem = nil
+        added = nil
     }
 }
