@@ -9,6 +9,7 @@ struct SaleView: View {
     @State private var editingPanel = false
     @State private var showApprovals = false
     @State private var importing = false
+    @State private var loadingFasigTipton = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,7 +19,9 @@ struct SaleView: View {
                     .padding(16)
             } else {
                 EmptySale(isLoading: store.isLoading || store.sale.id != saleID, canAdd: store.isStaff,
-                          add: { addingHip = true }, importCatalog: { importing = true })
+                          fasigTipton: store.sale.isFasigTipton,
+                          add: { addingHip = true }, importCatalog: { importing = true },
+                          loadFasigTipton: { loadingFasigTipton = true })
             }
         }
         .background(Theme.page)
@@ -39,6 +42,11 @@ struct SaleView: View {
                     .accessibilityLabel("Panel: vets and agents")
                     Menu {
                         Button { addingHip = true } label: { Label("Add hip", systemImage: "plus") }
+                        if store.sale.isFasigTipton {
+                            Button { loadingFasigTipton = true } label: {
+                                Label("Load from Fasig-Tipton", systemImage: "globe")
+                            }
+                        }
                         Button { importing = true } label: { Label("Import spreadsheet", systemImage: "tablecells") }
                     } label: {
                         Image(systemName: "plus").foregroundStyle(.white)
@@ -54,6 +62,7 @@ struct SaleView: View {
         .sheet(isPresented: $editingPanel) { PanelSheet() }
         .sheet(isPresented: $showApprovals) { ApprovalsSheet(path: $path) }
         .sheet(isPresented: $importing) { ImportSheet() }
+        .sheet(isPresented: $loadingFasigTipton) { FasigTiptonSheet() }
         .sheet(isPresented: $addingHip) {
             EditSheet(field: .hipNumber, hip: Hip(number: (store.hips.last?.number ?? 0) + 1), isNew: true)
         }
@@ -96,8 +105,10 @@ private struct SaleSwitcher: View {
 private struct EmptySale: View {
     let isLoading: Bool
     let canAdd: Bool
+    let fasigTipton: Bool
     let add: () -> Void
     let importCatalog: () -> Void
+    let loadFasigTipton: () -> Void
 
     var body: some View {
         VStack(spacing: 14) {
@@ -106,13 +117,26 @@ private struct EmptySale: View {
                 ProgressView()
             } else {
                 Text("No hips in this sale yet").font(Theme.sans(18, .semibold)).foregroundStyle(Theme.ink)
-                Text(canAdd ? "Add the first hip, or import the catalog spreadsheet." : "Backring Buyer staff are loading the catalog.")
+                Text(!canAdd ? "Backring Buyer staff are loading the catalog."
+                     : fasigTipton ? "Load the catalog from fasigtipton.com, import a spreadsheet, or add hips one by one."
+                     : "Add the first hip, or import the catalog spreadsheet.")
                     .font(Theme.sans(15)).foregroundStyle(Theme.slate).multilineTextAlignment(.center)
                 if canAdd {
-                    Button(action: importCatalog) {
-                        Label("Import spreadsheet", systemImage: "tablecells")
+                    if fasigTipton {
+                        Button(action: loadFasigTipton) {
+                            Label("Load from Fasig-Tipton", systemImage: "globe")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        Button(action: importCatalog) {
+                            Label("Import spreadsheet", systemImage: "tablecells")
+                        }
+                        .buttonStyle(.bordered)
+                    } else {
+                        Button(action: importCatalog) {
+                            Label("Import spreadsheet", systemImage: "tablecells")
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
-                    .buttonStyle(.borderedProminent)
                     Button("Add one hip", action: add).buttonStyle(.bordered)
                 }
             }

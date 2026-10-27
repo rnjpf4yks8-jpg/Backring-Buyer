@@ -222,6 +222,9 @@ struct Sale: Codable, Hashable, Identifiable {
     var agentPrice = 50
 
     func member(_ slot: OpinionSlot) -> PanelMember? { panel[slot.rawValue] }
+
+    /// Fasig-Tipton sales can load their catalog straight from fasigtipton.com.
+    var isFasigTipton: Bool { company.lowercased().contains("fasig") }
     func price(_ slot: OpinionSlot) -> Int { slot.isVet ? vetPrice : agentPrice }
 
     /// The sale date as a Date, for ordering the sales list. Dates are entered like "Oct 27, 2026".

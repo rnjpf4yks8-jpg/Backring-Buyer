@@ -36,6 +36,8 @@
 - Config file: HAINTEL/GoogleService-Info.plist (already in the repo)
 - Setup steps, security rules, spreadsheet template and admin script: firebase/README.md
   - Add a sale: in the app, + on the sales list (staff). Or: node admin.js create-sale <id> "<name>" "<company>" "<date>"
+  - Fasig-Tipton sales: open the sale → + → Load from Fasig-Tipton. It reads every hip from fasigtipton.com (pedigree,
+    consignor, barn, foaled, sale photo, walk video, catalog page PDF). Load again any time to pick up new photos and videos.
                   node admin.js import-hips <id> hips.csv
   - Give people roles: node admin.js set-role / assign  (see firebase/README.md)
 

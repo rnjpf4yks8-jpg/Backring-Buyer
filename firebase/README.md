@@ -60,6 +60,15 @@ firebase deploy --only functions,firestore:rules,storage
 ```
 The app's App ID also needs the Push Notifications capability, with a refreshed provisioning profile.
 
+## Loading a Fasig-Tipton catalog
+For a Fasig-Tipton sale, staff open the sale and tap + → **Load from Fasig-Tipton** (or the button on an
+empty sale). The app works out the sale's page from its name (e.g. Eastern Fall Yearlings in 2026 →
+https://www.fasigtipton.com/2026/Eastern-Fall-Yearlings); if that isn't it, paste the link from the
+website. It reads the hips from the same public data fasigtipton.com's own catalogue uses and imports them
+like a spreadsheet: pedigree (sire, dam, dam's sire), consignor, barn, foaling date and state, sale photo,
+walk video and the hip's catalog page PDF. Outs are left off unless included. Loading again updates the
+catalog details and adds photos and videos posted since; vet reports, opinions, grades and reserves stay.
+
 ## Report files (PDF and photos)
 Vets and bloodstock agents can attach their written report, radiographs or scope images to an opinion
 (Add photos, Add PDF or image file, or Scan paper report with the camera). Staff can attach the
