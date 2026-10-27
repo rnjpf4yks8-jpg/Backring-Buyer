@@ -85,7 +85,9 @@ final class FirebaseBackend: SaleBackend {
     func save(sale: Sale) async throws {
         let ref = db.collection("sales").document(sale.id)
         if try await ref.getDocument().exists {
-            try await ref.setData(["name": sale.name, "company": sale.company, "date": sale.date], merge: true)
+            var fields: [String: Any] = ["name": sale.name, "company": sale.company, "date": sale.date]
+            if let code = sale.fasigSale { fields["fasigSale"] = code }
+            try await ref.setData(fields, merge: true)
         } else {
             try ref.setData(from: sale)
         }
@@ -185,9 +187,9 @@ final class FirebaseBackend: SaleBackend {
     func importCatalog(_ rows: [CatalogImport.Row], saleID: String) async throws -> (added: Int, updated: Int) {
         let existing = Set(try await hipsRef(saleID).getDocuments().documents.map(\.documentID))
         var added = 0, updated = 0
-        for start in stride(from: 0, to: rows.count, by: 400) {
+        for start in stride(from: 0, to: rows.count, by: 250) {
             let batch = db.batch()
-            for row in rows[start..<min(start + 400, rows.count)] {
+            for row in rows[start..<min(start + 250, rows.count)] {
                 let ref = hipsRef(saleID).document(String(row.number))
                 if existing.contains(ref.documentID) {
                     let fields = CatalogImport.fieldUpdates(row)

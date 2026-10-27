@@ -123,6 +123,8 @@ struct Hip: Codable, Identifiable, Hashable {
     var pedigreeGrade: Double? = nil
     /// One line on why the hip got its grades.
     var gradeNotes: String? = nil
+    /// Scratched from the sale (from the Fasig-Tipton import or an "out" spreadsheet column).
+    var isOut: Bool? = nil
 
     var pendingSlots: [OpinionSlot] { opinionsPending ?? [] }
 
@@ -216,6 +218,8 @@ struct Sale: Codable, Hashable, Identifiable {
     var name: String
     var company: String
     var date: String
+    /// The Fasig-Tipton sale code (like "M26B") when the catalog comes from fasigtipton.com.
+    var fasigSale: String? = nil
     /// Keyed by OpinionSlot raw value.
     var panel: [String: PanelMember] = [:]
     var vetPrice = 25

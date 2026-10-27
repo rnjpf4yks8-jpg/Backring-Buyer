@@ -26,6 +26,7 @@ struct SalesIndexView: View {
     @Environment(SaleStore.self) private var store
     @State private var showAccount = false
     @State private var addingSale = false
+    @State private var importingFasig = false
     @State private var editingSale: Sale?
     @State private var deletingSale: Sale?
     @State private var deleting = false
@@ -84,7 +85,19 @@ struct SalesIndexView: View {
                 }
                 .accessibilityLabel("Account")
             }
-            if store.isStaff {
+            if store.isAdmin {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button { addingSale = true } label: { Label("Add sale", systemImage: "plus") }
+                        Button { importingFasig = true } label: {
+                            Label("Import from Fasig-Tipton", systemImage: "arrow.down.circle")
+                        }
+                    } label: {
+                        Image(systemName: "plus").foregroundStyle(.white)
+                    }
+                    .accessibilityLabel("Add or import a sale")
+                }
+            } else if store.isStaff {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { addingSale = true } label: {
                         Image(systemName: "plus").foregroundStyle(.white)
@@ -126,6 +139,7 @@ struct SalesIndexView: View {
         .toolbarColorScheme(.dark, for: .navigationBar)
         .sheet(isPresented: $showAccount) { AccountView() }
         .sheet(isPresented: $addingSale) { SaleSheet(editing: nil) }
+        .sheet(isPresented: $importingFasig) { FasigImportSheet(open: open) }
         .sheet(item: $editingSale) { SaleSheet(editing: $0) }
         .confirmationDialog("Delete this sale?",
                             isPresented: Binding(get: { deletingSale != nil }, set: { if !$0 { deletingSale = nil } }),

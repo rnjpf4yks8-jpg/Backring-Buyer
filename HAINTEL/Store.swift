@@ -550,6 +550,7 @@ final class SaleStore {
                 sales[i].name = edited.name
                 sales[i].company = edited.company
                 sales[i].date = edited.date
+                if let code = edited.fasigSale { sales[i].fasigSale = code }
             } else {
                 sales.append(edited)
                 hipCounts[edited.id] = 0
@@ -558,6 +559,7 @@ final class SaleStore {
                 sale.name = edited.name
                 sale.company = edited.company
                 sale.date = edited.date
+                if let code = edited.fasigSale { sale.fasigSale = code }
             }
             sales.sort { ($0.day ?? .distantPast, $0.name) > ($1.day ?? .distantPast, $1.name) }
             if feature { featuredSaleID = edited.id }
@@ -610,6 +612,62 @@ final class SaleStore {
             }
             currentHipNumber = hip.number
         }
+    }
+
+    // MARK: Fasig-Tipton (administrator)
+
+    struct FasigResult {
+        var saleID: String
+        var saleName: String
+        var added: Int
+        var updated: Int
+    }
+
+    /// The app sale a Fasig-Tipton catalog goes into: one already linked to that sale code, or a
+    /// Fasig-Tipton sale on the same date (made by hand earlier). Nil means a new sale is made.
+    func appSale(for catalog: FasigTipton.Catalog) -> Sale? {
+        if let linked = sales.first(where: { $0.fasigSale?.caseInsensitiveCompare(catalog.code) == .orderedSame }) {
+            return linked
+        }
+        guard let day = catalog.day else { return nil }
+        return sales.first { $0.date == Sale.dateText(day) && $0.company.lowercased().contains("fasig") }
+    }
+
+    /// Administrator: puts a Fasig-Tipton catalog into the app: makes (or reuses) the sale, adds new hips,
+    /// and updates hips already there. Staff uploads stay: an uploaded walk video, sale picture or catalog
+    /// page is only replaced by Fasig-Tipton's when it came from Fasig-Tipton in the first place.
+    func importFasigTipton(_ catalog: FasigTipton.Catalog, into chosen: Sale?, feature: Bool) async -> FasigResult? {
+        guard isAdmin else { return nil }
+        let day = catalog.day ?? Date()
+        var target = chosen ?? appSale(for: catalog) ?? Sale(
+            id: Sale.makeID(company: "Fasig-Tipton", day: day, taken: Set(sales.map(\.id))),
+            name: catalog.name, company: "Fasig-Tipton", date: Sale.dateText(day))
+        target.fasigSale = catalog.code
+        guard await save(target, feature: feature) else { return nil }
+
+        var result: FasigResult?
+        await attempt {
+            let existing = Dictionary(try await backend.loadHips(saleID: target.id).map { ($0.number, $0) },
+                                      uniquingKeysWith: { first, _ in first })
+            func fromFasig(_ url: URL?) -> Bool {
+                guard let host = url?.host()?.lowercased() else { return true }  // nothing there yet
+                return ["fasigtipton", "vimeo", "youtube", "youtu.be"].contains { host.contains($0) }
+            }
+            let rows = catalog.horses.map { horse -> CatalogImport.Row in
+                var row = FasigTipton.row(horse, saleDay: catalog.day)
+                if let hip = existing[horse.hip] {
+                    if !fromFasig(hip.walkVideoURL) { row.walkVideoURL = nil }
+                    if !fromFasig(hip.photoURL) { row.photoURL = nil }
+                    if !fromFasig(hip.pedigreeURL) { row.pedigreeURL = nil }
+                }
+                return row
+            }
+            let counts = try await backend.importCatalog(rows, saleID: target.id)
+            hipCounts[target.id] = existing.count + counts.added
+            result = FasigResult(saleID: target.id, saleName: target.name, added: counts.added, updated: counts.updated)
+        }
+        if result != nil, sale.id == target.id { await open(saleID: target.id) }
+        return result
     }
 
     /// Staff: imports a catalog spreadsheet into the open sale, then reloads its hips.

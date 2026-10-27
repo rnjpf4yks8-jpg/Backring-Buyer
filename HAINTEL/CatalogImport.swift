@@ -32,6 +32,8 @@ struct CatalogImport {
         var conformationGrade: Double?
         var pedigreeGrade: Double?
         var gradeNotes: String?
+        /// Scratched from the sale.
+        var isOut: Bool?
     }
 
     var rows: [Row]
@@ -77,6 +79,7 @@ struct CatalogImport {
         "conformationGrade": ["conformationgrade", "conformation", "cgrade"],
         "pedigreeGrade": ["pedigreegrade", "pgrade"],
         "gradeNotes": ["gradenotes", "notes", "comments", "why"],
+        "isOut": ["out", "isout", "scratched", "withdrawn"],
     ]
 
     static func normalize(_ heading: String) -> String {
@@ -152,6 +155,7 @@ struct CatalogImport {
             row.photoURL = filled("photoURL").flatMap(webLink)
             row.walkVideoLength = filled("walkVideoLength")
             row.gradeNotes = filled("gradeNotes")
+            row.isOut = filled("isOut").map { ["y", "yes", "x", "true", "out", "1"].contains($0.lowercased()) }
             for (field, max, label) in [("conformationGrade", 10.0, "conformation"), ("pedigreeGrade", 5.0, "pedigree")] {
                 guard let value = filled(field) else { continue }
                 if let grade = halfPointGrade(value, max: max) {
@@ -236,7 +240,7 @@ struct CatalogImport {
 
     static func webLink(_ text: String) -> URL? {
         let link = text.lowercased().hasPrefix("http") ? text : "https://\(text)"
-        guard let url = URL(string: link), url.host != nil else { return nil }
+        guard let url = URL(string: link), url.host?.contains(".") == true else { return nil }
         return url
     }
 
@@ -257,7 +261,7 @@ struct CatalogImport {
         switch normalize(text) {
         case "b": "Bay"
         case "ch", "chs", "chestnut": "Chestnut"
-        case "dkbbr", "dkbor", "dkbbro", "dkbayorbr", "darkbayorbrown", "darkbaybrown": "Dark Bay/Brown"
+        case "dkb", "dkbbr", "dkbor", "dkbbro", "dkbayorbr", "darkbayorbrown", "darkbaybrown": "Dark Bay/Brown"
         case "br", "bro", "brown": "Brown"
         case "blk", "bl", "black": "Black"
         case "gr", "gray", "grey": "Gray"
@@ -302,6 +306,7 @@ struct CatalogImport {
         if let v = row.conformationGrade { hip.conformationGrade = v }
         if let v = row.pedigreeGrade { hip.pedigreeGrade = v }
         if let v = row.gradeNotes { hip.gradeNotes = v }
+        if let v = row.isOut { hip.isOut = v }
     }
 
     /// The same changes as Firestore field updates, for a hip that's already saved: only the
@@ -316,7 +321,7 @@ struct CatalogImport {
             ("reserve", row.reserve), ("pedigreeURL", row.pedigreeURL?.absoluteString),
             ("walkVideoURL", row.walkVideoURL?.absoluteString), ("photoURL", row.photoURL?.absoluteString),
             ("walkVideoLength", row.walkVideoLength), ("conformationGrade", row.conformationGrade),
-            ("pedigreeGrade", row.pedigreeGrade), ("gradeNotes", row.gradeNotes),
+            ("pedigreeGrade", row.pedigreeGrade), ("gradeNotes", row.gradeNotes), ("isOut", row.isOut),
         ]
         for (key, value) in pairs { if let value { update[key] = value } }
         return update

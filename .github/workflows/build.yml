@@ -19,6 +19,10 @@ jobs:
         run: |
           swiftc -parse-as-library HAINTEL/Models.swift HAINTEL/CatalogImport.swift Tests/CatalogImportCheck.swift -o "$RUNNER_TEMP/catalog-check"
           "$RUNNER_TEMP/catalog-check"
+      - name: Check the Fasig-Tipton reader
+        run: |
+          swiftc -parse-as-library HAINTEL/Models.swift HAINTEL/CatalogImport.swift HAINTEL/FasigTipton.swift Tests/FasigTiptonCheck.swift -o "$RUNNER_TEMP/fasig-check"
+          "$RUNNER_TEMP/fasig-check"
       - name: Build for simulator
         run: |
           set -o pipefail

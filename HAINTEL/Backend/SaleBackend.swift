@@ -183,6 +183,7 @@ final class SampleBackend: SaleBackend {
             sales[i].name = sale.name
             sales[i].company = sale.company
             sales[i].date = sale.date
+            if let code = sale.fasigSale { sales[i].fasigSale = code }
         } else {
             sales.append(sale)
         }

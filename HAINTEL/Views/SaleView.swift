@@ -9,6 +9,7 @@ struct SaleView: View {
     @State private var editingPanel = false
     @State private var showApprovals = false
     @State private var importing = false
+    @State private var importingFasig = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,6 +41,12 @@ struct SaleView: View {
                     Menu {
                         Button { addingHip = true } label: { Label("Add hip", systemImage: "plus") }
                         Button { importing = true } label: { Label("Import spreadsheet", systemImage: "tablecells") }
+                        if store.isAdmin {
+                            Button { importingFasig = true } label: {
+                                Label(store.sale.fasigSale == nil ? "Import from Fasig-Tipton" : "Update from Fasig-Tipton",
+                                      systemImage: "arrow.down.circle")
+                            }
+                        }
                     } label: {
                         Image(systemName: "plus").foregroundStyle(.white)
                     }
@@ -54,6 +61,7 @@ struct SaleView: View {
         .sheet(isPresented: $editingPanel) { PanelSheet() }
         .sheet(isPresented: $showApprovals) { ApprovalsSheet(path: $path) }
         .sheet(isPresented: $importing) { ImportSheet() }
+        .sheet(isPresented: $importingFasig) { FasigImportSheet(into: store.sale) }
         .sheet(isPresented: $addingHip) {
             EditSheet(field: .hipNumber, hip: Hip(number: (store.hips.last?.number ?? 0) + 1), isNew: true)
         }
@@ -176,11 +184,21 @@ private struct HipHeader: View {
                 HipStepButton(symbol: "chevron.right", enabled: store.hasNextHip) { store.stepHip(1) }
                     .accessibilityLabel("Next hip")
             }
-            Text("\(hip.title) · \(hip.cross)")
-                .font(Theme.sans(15, .medium))
-                .foregroundStyle(Theme.mist)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            HStack(spacing: 6) {
+                if hip.isOut == true {
+                    Text("OUT")
+                        .font(Theme.mono(12, .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Theme.red, in: Capsule())
+                        .accessibilityLabel("Out of the sale")
+                }
+                Text("\(hip.title) · \(hip.cross)")
+                    .font(Theme.sans(15, .medium))
+                    .foregroundStyle(Theme.mist)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
             Text("\(hip.consignor) · \(hip.barn)")
                 .font(Theme.sans(13))
                 .foregroundStyle(Theme.muted)

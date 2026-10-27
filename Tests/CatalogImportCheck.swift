@@ -1,5 +1,5 @@
 // Checks the spreadsheet reader (HAINTEL/CatalogImport.swift) without the app. Run on a Mac:
-//   swiftc HAINTEL/Models.swift HAINTEL/CatalogImport.swift Tests/CatalogImportCheck.swift -o /tmp/check && /tmp/check
+//   swiftc -parse-as-library HAINTEL/Models.swift HAINTEL/CatalogImport.swift Tests/CatalogImportCheck.swift -o /tmp/check && /tmp/check
 // GitHub Actions runs it on every push.
 import Foundation
 
