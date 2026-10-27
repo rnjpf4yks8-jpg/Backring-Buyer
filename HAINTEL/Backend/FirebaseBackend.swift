@@ -28,7 +28,12 @@ final class FirebaseBackend: SaleBackend {
     }
 
     func signIn(email: String, password: String) async throws -> AppUser {
-        let result = try await Auth.auth().signIn(withEmail: email, password: password)
+        let result: AuthDataResult
+        do {
+            result = try await Auth.auth().signIn(withEmail: email.trimmingCharacters(in: .whitespaces), password: password)
+        } catch {
+            throw Self.plainAuthError(error, signingIn: true)
+        }
         guard let user = try await loadUser(result.user.uid) else {
             throw BackendError(message: "This account has no Backring Buyer profile yet. Ask Backring Buyer staff to set it up.")
         }
@@ -38,7 +43,12 @@ final class FirebaseBackend: SaleBackend {
     /// Every new account is a buyer (security rules allow only that). Asking to be a vet, bloodstock agent
     /// or staff saves requestedRole; the administrator gets a push notification and approves it.
     func createAccount(name: String, email: String, password: String, role: Role) async throws -> AppUser {
-        let result = try await Auth.auth().createUser(withEmail: email, password: password)
+        let result: AuthDataResult
+        do {
+            result = try await Auth.auth().createUser(withEmail: email.trimmingCharacters(in: .whitespaces), password: password)
+        } catch {
+            throw Self.plainAuthError(error, signingIn: false)
+        }
         let asked = Role.requestable.contains(role) ? role : nil
         let user = AppUser(uid: result.user.uid, name: name, role: .buyer, email: email,
                            requestedRole: asked, requestedAt: asked == nil ? nil : Date())
@@ -434,6 +444,26 @@ final class FirebaseBackend: SaleBackend {
             data["signedTransaction"] = receipt.signedTransaction
         }
         try await db.collection("users").document(uid).collection("purchases").document(purchaseID).setData(data)
+    }
+
+    /// Firebase's sign-in errors in plain words. With email protection on, Firebase gives the same
+    /// "auth credential is malformed or has expired" error for a wrong password and an unknown email.
+    static func plainAuthError(_ error: Error, signingIn: Bool) -> Error {
+        let nsError = error as NSError
+        guard nsError.domain == "FIRAuthErrorDomain" else { return error }
+        let message: String? = switch nsError.code {
+        case 17004, 17009, 17011:  // invalid credential, wrong password, no such user
+            "That email and password don’t match an account. Check them, tap “Forgot password?”, or create an account if you haven’t yet."
+        case 17007: "There’s already an account with that email. Tap Sign in instead (or “Forgot password?”)."
+        case 17008: "That email address doesn’t look right. Check it and try again."
+        case 17026: "Choose a longer password: at least 6 characters."
+        case 17010: "Too many tries. Wait a few minutes, or tap “Forgot password?”."
+        case 17005: "This account has been switched off. Ask the Backring Buyer administrator."
+        case 17020: "No internet connection. Check Wi-Fi or mobile data and try again."
+        case 17006: "Email sign-in isn’t switched on for Backring Buyer yet (Firebase → Authentication → Sign-in method → Email/Password)."
+        default: nil
+        }
+        return message.map { BackendError(message: $0) } ?? error
     }
 
     private func hipsRef(_ saleID: String) -> CollectionReference {
