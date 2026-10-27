@@ -628,11 +628,16 @@ private struct WebVideo: UIViewRepresentable {
             }
             return embed.url
         case "youtu.be", "youtube.com", "m.youtube.com":
+            let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
             let id = host == "youtu.be" ? parts.first
-                : parts.first == "shorts" ? parts.dropFirst().first
-                : URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "v" })?.value
-            guard let id else { return nil }
-            return URL(string: "https://www.youtube.com/embed/\(id)?playsinline=1")
+                : parts.first == "shorts" || parts.first == "embed" || parts.first == "live" ? parts.dropFirst().first
+                : query.first(where: { $0.name == "v" })?.value
+            if let id { return URL(string: "https://www.youtube.com/embed/\(id)?playsinline=1") }
+            // Some consignors post a playlist link instead of a video.
+            if let list = query.first(where: { $0.name == "list" })?.value {
+                return URL(string: "https://www.youtube.com/embed/videoseries?list=\(list)&playsinline=1")
+            }
+            return nil
         default:
             return nil
         }
