@@ -95,11 +95,11 @@ struct CatalogImport {
     static func parse(_ text: String) throws -> CatalogImport {
         // A binary file (like an .xlsx picked by mistake) isn't a table at all.
         if text.contains("\u{0}") { throw Problem.unreadable }
-        var table = cells(of: text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text)
-        table.removeAll { $0.allSatisfy { $0.trimmingCharacters(in: .whitespaces).isEmpty } }
-        guard !table.isEmpty else { throw Problem.empty }
+        let table = cells(of: text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text)
+        func isBlank(_ cells: [String]) -> Bool { cells.allSatisfy { $0.trimmingCharacters(in: .whitespaces).isEmpty } }
+        guard let headerIndex = table.firstIndex(where: { !isBlank($0) }) else { throw Problem.empty }
 
-        let header = table.removeFirst()
+        let header = table[headerIndex]
         var columnOf: [String: Int] = [:]
         var ignored: [String] = []
         for (i, heading) in header.enumerated() {
@@ -117,8 +117,8 @@ struct CatalogImport {
         var warnings: [String] = []
         var rows: [Row] = []
         var seen: [Int: Int] = [:]
-        for (lineIndex, cells) in table.enumerated() {
-            let line = lineIndex + 2  // as numbered in the spreadsheet, after the heading row
+        for (index, cells) in table.enumerated() where index > headerIndex && !isBlank(cells) {
+            let line = index + 1  // the row number the spreadsheet app shows
             func cell(_ field: String) -> String? {
                 guard let i = columnOf[field] else { return nil }
                 return i < cells.count ? cells[i].trimmingCharacters(in: .whitespacesAndNewlines) : ""

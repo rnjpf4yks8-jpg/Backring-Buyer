@@ -45,6 +45,8 @@ struct CatalogImportCheck {
         check(e.rows[1].consignor == "Taylor Made, Agent", "export: quoted consignor")
         check(e.rows[2].dam == "Zed" && e.rows[2].sire == "Curlin", "export: last row with CRLF")
         check(e.ignoredColumns == ["Extra"], "export: unknown column reported as ignored")
+        let gap = try CatalogImport.parse("number,sire,dam\n1,A,B\n\n,C,D\n")
+        check(gap.warnings.first?.contains("Row 4") == true, "row numbers count blank rows, like Excel")
         check(e.rows[0].sireSire == nil, "export: missing column stays nil (not wiped)")
 
         // 3. Semicolon-separated (European Excel) and tabs
@@ -57,7 +59,7 @@ struct CatalogImportCheck {
         // 4. Quotes and line breaks inside cells, repeated hips, rows without numbers
         let tricky = try CatalogImport.parse("number,sire,dam,grade_notes\n5,A,B,\"Says \"\"wow\"\"\nsecond line\"\n,X,Y,\n5,A2,B2,\n")
         check(tricky.rows.count == 1 && tricky.rows[0].sire == "A2", "repeated hip: last row wins")
-        check(tricky.warnings.contains { $0.contains("no hip number") } && tricky.warnings.contains { $0.contains("rows 2 and 5") }, "warnings for blank number and repeat")
+        check(tricky.warnings.contains { $0.contains("no hip number") } && tricky.warnings.contains { $0.contains("rows 2 and 4") }, "warnings for blank number and repeat")
         let q = try CatalogImport.parse("number,sire,dam,grade_notes\n6,A,B,\"Says \"\"wow\"\"\nsecond line\"\n")
         check(q.rows[0].gradeNotes == "Says \"wow\"\nsecond line", "quotes and line break inside a cell")
 
