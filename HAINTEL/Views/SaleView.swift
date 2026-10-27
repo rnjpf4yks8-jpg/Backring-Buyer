@@ -8,6 +8,7 @@ struct SaleView: View {
     @State private var addingHip = false
     @State private var editingPanel = false
     @State private var showApprovals = false
+    @State private var importing = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,7 +17,8 @@ struct SaleView: View {
                 FieldGrid(hip: hip) { path.append(.field($0)) }
                     .padding(16)
             } else {
-                EmptySale(isLoading: store.isLoading || store.sale.id != saleID, canAdd: store.isStaff) { addingHip = true }
+                EmptySale(isLoading: store.isLoading || store.sale.id != saleID, canAdd: store.isStaff,
+                          add: { addingHip = true }, importCatalog: { importing = true })
             }
         }
         .background(Theme.page)
@@ -35,10 +37,13 @@ struct SaleView: View {
                         Image(systemName: "person.2").foregroundStyle(.white)
                     }
                     .accessibilityLabel("Panel: vets and agents")
-                    Button { addingHip = true } label: {
+                    Menu {
+                        Button { addingHip = true } label: { Label("Add hip", systemImage: "plus") }
+                        Button { importing = true } label: { Label("Import spreadsheet", systemImage: "tablecells") }
+                    } label: {
                         Image(systemName: "plus").foregroundStyle(.white)
                     }
-                    .accessibilityLabel("Add hip")
+                    .accessibilityLabel("Add hips")
                 }
             }
         }
@@ -48,6 +53,7 @@ struct SaleView: View {
         .task(id: saleID) { await store.open(saleID: saleID) }
         .sheet(isPresented: $editingPanel) { PanelSheet() }
         .sheet(isPresented: $showApprovals) { ApprovalsSheet(path: $path) }
+        .sheet(isPresented: $importing) { ImportSheet() }
         .sheet(isPresented: $addingHip) {
             EditSheet(field: .hipNumber, hip: Hip(number: (store.hips.last?.number ?? 0) + 1), isNew: true)
         }
@@ -91,6 +97,7 @@ private struct EmptySale: View {
     let isLoading: Bool
     let canAdd: Bool
     let add: () -> Void
+    let importCatalog: () -> Void
 
     var body: some View {
         VStack(spacing: 14) {
@@ -102,7 +109,11 @@ private struct EmptySale: View {
                 Text(canAdd ? "Add the first hip, or import the catalog spreadsheet." : "Backring Buyer staff are loading the catalog.")
                     .font(Theme.sans(15)).foregroundStyle(Theme.slate).multilineTextAlignment(.center)
                 if canAdd {
-                    Button("Add hip", action: add).buttonStyle(.borderedProminent)
+                    Button(action: importCatalog) {
+                        Label("Import spreadsheet", systemImage: "tablecells")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Button("Add one hip", action: add).buttonStyle(.bordered)
                 }
             }
             Spacer()

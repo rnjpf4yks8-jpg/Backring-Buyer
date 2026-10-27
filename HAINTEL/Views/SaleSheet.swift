@@ -18,7 +18,7 @@ struct SaleSheet: View {
     private var trimmedCompany: String { company.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var isFeatured: Bool { editing != nil && editing?.id == store.featuredSaleID }
 
-    /// The ID a new sale gets. It's shown so staff can use it with admin.js import-hips.
+    /// The ID a new sale gets (also usable with admin.js on a computer).
     private var newID: String {
         Sale.makeID(company: trimmedCompany, day: day, taken: Set(store.sales.map(\.id)))
     }
@@ -42,7 +42,7 @@ struct SaleSheet: View {
                     Text("Sale")
                 } footer: {
                     Text(editing.map { "Sale ID \($0.id). The panel, prices and hips stay as they are." }
-                         ?? "Sale ID \(newID). Use it to import the catalog: node admin.js import-hips \(newID) hips.csv")
+                         ?? "Sale ID \(newID). After adding it, open the sale and tap + → Import spreadsheet to load the catalog.")
                 }
 
                 Section {

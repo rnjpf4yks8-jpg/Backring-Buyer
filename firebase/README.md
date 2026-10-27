@@ -70,6 +70,13 @@ One-time setup, from this `firebase` folder with the Firebase CLI (`npm install 
 3. `firebase deploy --only functions` (this also deploys the purchase checker).
 
 ## For each sale
+**In the app (easiest):** staff tap **+** on the sales list to add the sale, open it, then tap
+**+ → Import spreadsheet** and pick the catalog saved as CSV (from Files, iCloud Drive or an email).
+The app shows how many hips it found and which are new before importing. Column names are matched
+loosely (Hip / Hip No, Broodmare Sire, Colour, YOB…), C/F/G and B/Ch/Dk B/Br abbreviations are spelled
+out, and re-importing updates catalog details without touching vet reports, opinions or media.
+
+**On a computer** (needs a service account key, which some Google Workspace organizations block):
 Staff add the sale in the app: **+** on the sales list, then the sale's name, company and date. Leave
 **Feature this sale** on to mark it NOW (`config/app.currentSale`). The sheet shows the sale's ID
 (e.g. `ft-oct-2026`); use it to import the catalog. Press and hold a sale to change its name, company

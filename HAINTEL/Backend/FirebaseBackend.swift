@@ -96,6 +96,29 @@ final class FirebaseBackend: SaleBackend {
         try hipsRef(saleID).document(String(hip.number)).setData(from: hip)
     }
 
+    /// New hips are written whole; hips already in the sale get only the spreadsheet's fields, so
+    /// opinions, media and staff edits are kept. Written in batches (Firestore allows 500 per batch).
+    func importCatalog(_ rows: [CatalogImport.Row], saleID: String) async throws -> (added: Int, updated: Int) {
+        let existing = Set(try await hipsRef(saleID).getDocuments().documents.map(\.documentID))
+        var added = 0, updated = 0
+        for start in stride(from: 0, to: rows.count, by: 400) {
+            let batch = db.batch()
+            for row in rows[start..<min(start + 400, rows.count)] {
+                let ref = hipsRef(saleID).document(String(row.number))
+                if existing.contains(ref.documentID) {
+                    let fields = CatalogImport.fieldUpdates(row)
+                    if !fields.isEmpty { batch.updateData(fields, forDocument: ref) }
+                    updated += 1
+                } else {
+                    try batch.setData(from: CatalogImport.newHip(row), forDocument: ref)
+                    added += 1
+                }
+            }
+            try await batch.commit()
+        }
+        return (added, updated)
+    }
+
     func deleteHip(number: Int, saleID: String) async throws {
         try await hipsRef(saleID).document(String(number)).delete()
     }

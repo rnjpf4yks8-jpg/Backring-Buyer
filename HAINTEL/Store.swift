@@ -528,6 +528,17 @@ final class SaleStore {
         }
     }
 
+    /// Staff: imports a catalog spreadsheet into the open sale, then reloads its hips.
+    func importCatalog(_ catalog: CatalogImport) async -> (added: Int, updated: Int)? {
+        var result: (added: Int, updated: Int)?
+        let saleID = sale.id
+        await attempt {
+            result = try await backend.importCatalog(catalog.rows, saleID: saleID)
+        }
+        if result != nil { await open(saleID: saleID) }
+        return result
+    }
+
     func upload(_ data: Data, kind: MediaKind, hip: Hip) async -> URL? {
         var url: URL?
         await attempt {

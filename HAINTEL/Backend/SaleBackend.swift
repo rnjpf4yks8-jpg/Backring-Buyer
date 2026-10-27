@@ -69,6 +69,8 @@ protocol SaleBackend {
     func hipCount(saleID: String) async throws -> Int
     func loadHips(saleID: String) async throws -> [Hip]
     func save(hip: Hip, saleID: String) async throws
+    /// Staff: adds the spreadsheet's new hips and updates the catalog fields of hips already in the sale.
+    func importCatalog(_ rows: [CatalogImport.Row], saleID: String) async throws -> (added: Int, updated: Int)
     func deleteHip(number: Int, saleID: String) async throws
     func upload(_ data: Data, kind: MediaKind, saleID: String, hip: Int) async throws -> URL
     /// Uploads a PDF or JPEG report file under a new, unguessable name. `author` is the uploader's uid.
@@ -170,6 +172,22 @@ final class SampleBackend: SaleBackend {
     func hipCount(saleID: String) async throws -> Int { hipsBySale[saleID]?.count ?? 0 }
 
     func loadHips(saleID: String) async throws -> [Hip] { hipsBySale[saleID] ?? [] }
+
+    func importCatalog(_ rows: [CatalogImport.Row], saleID: String) async throws -> (added: Int, updated: Int) {
+        var hips = hipsBySale[saleID] ?? []
+        var added = 0, updated = 0
+        for row in rows {
+            if let i = hips.firstIndex(where: { $0.number == row.number }) {
+                CatalogImport.apply(row, to: &hips[i])
+                updated += 1
+            } else {
+                hips.append(CatalogImport.newHip(row))
+                added += 1
+            }
+        }
+        hipsBySale[saleID] = hips
+        return (added, updated)
+    }
 
     func save(hip: Hip, saleID: String) async throws {
         var hips = hipsBySale[saleID] ?? []
