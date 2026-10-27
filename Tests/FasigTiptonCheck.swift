@@ -34,6 +34,72 @@ let page = #"""
 </head><body></body></html>
 """#
 
+let cataloguesPage = #"""
+<div class="view-content">
+    <div class="row catalogue-list-item">
+<div class="col-lg-2">
+  <div class="sale-cover">
+    <a href="/2026/The-November-Sale">
+              <img src="/sites/default/files/styles/catalogue_cover_400x/public/2026-09/Nov.jpg?itok=abc" alt="">
+          </a>
+  </div>
+</div>
+<div class="col-lg-10">
+  <div class="row">
+    <div class="col-sm-12">
+      <h3 class="sale-name">
+        <a href="/2026/The-November-Sale">The November Sale</a>
+      </h3>
+    </div>
+    <div class="col-sm-12 clearfix">
+      <div class="sale-date">
+                  Nov 02, 2026
+              </div>
+      <div class="sale-location">
+
+            <div class="field field--name-dynamic-token-fieldnode-sale-location field--type-ds field--label-hidden field--item">Lexington, Kentucky
+</div>
+
+                </div>
+    </div>
+    <div class="col-sm-12">
+      <div class="sale-description">
+            <div class="field field--name-body"><p>The world&rsquo;s premier breeding stock event.</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+    <div class="row catalogue-list-item">
+<div class="col-lg-2">
+  <div class="sale-cover">
+    <a href="/2026/Kentucky-October-Yearlings">
+              <img src="/sites/default/files/styles/catalogue_cover_400x/public/2026-09/BLANK%20Cover.jpg?itok=x" alt="">
+          </a>
+  </div>
+</div>
+<div class="col-lg-10">
+  <div class="row">
+    <div class="col-sm-12">
+      <h3 class="sale-name">
+        <a href="/2026/Kentucky-October-Yearlings">Kentucky October Yearlings &amp; More</a>
+      </h3>
+    </div>
+    <div class="col-sm-12 clearfix">
+      <div class="sale-date">
+                  Oct 19 - 22, 2026
+              </div>
+      <div class="sale-location">
+            <div class="field field--item">Lexington, Kentucky
+</div>
+                </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+"""#
+
 @main
 struct FasigTiptonCheck {
     static func main() throws {
@@ -55,6 +121,19 @@ struct FasigTiptonCheck {
         check(FasigTipton.pageInfo(fromHTML: "<html>no sale</html>") == nil, "page without a sale")
         check(FasigTipton.saleName(fromTitle: "Eastern Fall Yearlings (2026)", code: "M26B") == "Eastern Fall Yearlings", "sale name without year")
         check(FasigTipton.saleName(fromTitle: nil, code: "M26B") == "Fasig-Tipton sale M26B", "sale name from code")
+
+        // The list of sales
+        let list = FasigTipton.catalogues(fromHTML: cataloguesPage)
+        check(list.count == 2, "two sales listed")
+        check(list.first?.name == "The November Sale" && list.first?.url.absoluteString == "https://www.fasigtipton.com/2026/The-November-Sale", "name and full link")
+        check(list.first?.dates == "Nov 02, 2026" && list.first?.location == "Lexington, Kentucky", "date and place")
+        check(list.first?.cover?.absoluteString.hasPrefix("https://www.fasigtipton.com/sites/default/files/") == true, "cover picture")
+        check(list.first.flatMap(\.firstDay).map(Sale.dateText) == "Nov 2, 2026", "first day of a one-day sale")
+        check(list[1].name == "Kentucky October Yearlings & More" && list[1].dates == "Oct 19 - 22, 2026", "entity decoded, date range kept")
+        check(list[1].firstDay.map(Sale.dateText) == "Oct 19, 2026", "first day of a multi-day sale")
+        let plain = FasigTipton.catalogues(fromHTML: #"<p><a href="https://www.fasigtipton.com/2027/The-July-Sale">The July Sale</a> <a href="/about-us">About</a></p>"#)
+        check(plain.map(\.name) == ["The July Sale"], "fallback finds sale links only")
+        check(FasigTipton.catalogues(fromHTML: "<html></html>").isEmpty, "no sales on an empty page")
 
         // Dates and catalog pages
         let day = FasigTipton.saleDay(apiDay: "2026-10-27", pageDate: nil)!

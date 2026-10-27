@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Administrator: loads a Fasig-Tipton sale straight from fasigtipton.com: catalog, walk videos, photos,
-/// catalog pages and outs. Paste the sale's catalogue link (or its code), check what was found, import.
+/// catalog pages and outs. Pick the sale from Fasig-Tipton's list (or paste its link or code), check
+/// what was found, import.
 /// Running it again for the same sale picks up new videos, photos and outs.
 struct FasigImportSheet: View {
     @Environment(SaleStore.self) private var store
@@ -18,6 +19,13 @@ struct FasigImportSheet: View {
     @State private var feature = true
     @State private var importing = false
     @State private var done: SaleStore.FasigResult?
+    @State private var catalogues: [FasigTipton.Catalogue] = []
+    @State private var loadingList = false
+    @State private var listProblem: String?
+    @State private var picked: FasigTipton.Catalogue?
+
+    /// Updating a sale that already came from Fasig-Tipton: no need to pick it again.
+    private var updating: Bool { into?.fasigSale != nil }
 
     private var target: Sale? { into ?? catalog.flatMap(store.appSale(for:)) }
 
@@ -26,12 +34,25 @@ struct FasigImportSheet: View {
             Form {
                 if let done {
                     finished(done)
-                } else {
-                    linkSection
-                    if let catalog { found(catalog) }
-                    if let problem {
-                        Section { Text(problem).foregroundStyle(Theme.red) }
+                } else if let catalog {
+                    found(catalog)
+                    if !updating {
+                        Section {
+                            Button {
+                                self.catalog = nil
+                                picked = nil
+                                problem = nil
+                            } label: {
+                                Label("Choose a different sale", systemImage: "arrow.uturn.backward")
+                            }
+                        }
                     }
+                } else {
+                    if !updating { salesSection }
+                    linkSection
+                }
+                if done == nil, let problem {
+                    Section { Text(problem).foregroundStyle(Theme.red) }
                 }
             }
             .navigationTitle(into?.fasigSale == nil ? "Import from Fasig-Tipton" : "Update from Fasig-Tipton")
@@ -56,43 +77,78 @@ struct FasigImportSheet: View {
                 if let code = into?.fasigSale, catalog == nil {
                     link = code
                     await lookUp()
+                } else if catalogues.isEmpty {
+                    await loadList()
                 }
             }
         }
     }
 
+    /// Fasig-Tipton's sales, newest first. Tapping one looks it up.
+    private var salesSection: some View {
+        Section {
+            if loadingList {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Loading Fasig-Tipton’s sales…").foregroundStyle(Theme.slate)
+                }
+            }
+            ForEach(catalogues) { sale in
+                Button {
+                    Task { await pick(sale) }
+                } label: {
+                    CatalogueRow(sale: sale, busy: looking && picked == sale)
+                }
+                .disabled(looking)
+            }
+            if let listProblem {
+                Text(listProblem).foregroundStyle(Theme.red)
+                Button("Try again") { Task { await loadList() } }
+            }
+        } header: {
+            Text("Pick a Fasig-Tipton sale")
+        } footer: {
+            Text("Newest first, as listed on fasigtipton.com.")
+        }
+    }
+
     private var linkSection: some View {
         Section {
-            TextField("https://www.fasigtipton.com/2026/…", text: $link, axis: .vertical)
+            TextField("Paste a sale link, or a code like M26B", text: $link, axis: .vertical)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .lineLimit(1...3)
+                .onSubmit { Task { await lookUp() } }
             if UIPasteboard.general.hasStrings {
                 Button {
                     link = UIPasteboard.general.string ?? ""
                     Task { await lookUp() }
                 } label: {
-                    Label("Paste link and look up", systemImage: "doc.on.clipboard")
+                    Label("Paste and look up", systemImage: "doc.on.clipboard")
                 }
             }
-            if looking {
+            if looking && picked == nil {
                 HStack(spacing: 10) {
                     ProgressView()
                     Text("Reading the catalog from fasigtipton.com…").foregroundStyle(Theme.slate)
                 }
             } else {
                 Button {
+                    picked = nil
                     Task { await lookUp() }
                 } label: {
                     Label("Look up", systemImage: "magnifyingglass")
                 }
-                .disabled(link.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(looking || link.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            Link(destination: URL(string: "https://www.fasigtipton.com/catalogues")!) {
+                Label("Open fasigtipton.com in Safari", systemImage: "safari")
             }
         } header: {
-            Text("Fasig-Tipton sale")
+            Text(updating ? "Fasig-Tipton sale" : "Or paste a link")
         } footer: {
-            Text("In Safari, open the sale’s catalogue page on fasigtipton.com, tap Share → Copy, and paste it here. The sale code (like M26B) works too.")
+            Text("On fasigtipton.com, open the sale’s catalogue page, tap Share → Copy, then come back and tap Paste and look up.")
         }
     }
 
@@ -149,6 +205,24 @@ struct FasigImportSheet: View {
         }
     }
 
+    private func pick(_ sale: FasigTipton.Catalogue) async {
+        picked = sale
+        link = sale.url.absoluteString
+        await lookUp()
+    }
+
+    private func loadList() async {
+        loadingList = true
+        listProblem = nil
+        defer { loadingList = false }
+        do {
+            catalogues = try await FasigTipton.catalogueList()
+            if catalogues.isEmpty { listProblem = "Couldn’t find Fasig-Tipton’s sale list. Paste the sale’s link below instead." }
+        } catch {
+            listProblem = "Couldn’t load Fasig-Tipton’s sales (\(error.localizedDescription)) Paste the sale’s link below instead."
+        }
+    }
+
     private func lookUp() async {
         looking = true
         problem = nil
@@ -171,5 +245,34 @@ struct FasigImportSheet: View {
         done = await store.importFasigTipton(catalog, into: into, feature: feature && target?.id != store.featuredSaleID)
         if done == nil { problem = store.errorMessage ?? "The import didn’t finish. Try again." }
         importing = false
+    }
+}
+
+/// A sale in Fasig-Tipton's list: its catalogue cover, name, dates and place.
+private struct CatalogueRow: View {
+    let sale: FasigTipton.Catalogue
+    let busy: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            AsyncImage(url: sale.cover) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Theme.mist
+            }
+            .frame(width: 34, height: 44)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(sale.name).foregroundStyle(Theme.ink)
+                Text([sale.dates, sale.location].filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(.footnote).foregroundStyle(Theme.slate)
+            }
+            Spacer(minLength: 8)
+            if busy {
+                ProgressView()
+            } else {
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Theme.slate)
+            }
+        }
     }
 }

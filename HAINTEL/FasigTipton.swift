@@ -243,6 +243,102 @@ enum FasigTipton {
         return f
     }
 
+    // MARK: The list of sales
+
+    /// One sale on fasigtipton.com/catalogues/<year>.
+    struct Catalogue: Equatable, Identifiable {
+        var id: String { url.absoluteString }
+        var name: String
+        var url: URL
+        /// As Fasig-Tipton writes them: "Oct 27, 2026" or "Oct 19 - 22, 2026".
+        var dates: String
+        var location: String
+        var cover: URL?
+        var firstDay: Date?
+    }
+
+    /// Reads the sales listed on a catalogues page. Each sale is a "catalogue-list-item" with its name
+    /// and link in an h3.sale-name, then .sale-date and .sale-location.
+    static func catalogues(fromHTML html: String) -> [Catalogue] {
+        var found: [Catalogue] = []
+        for chunk in html.components(separatedBy: "catalogue-list-item").dropFirst() {
+            guard let title = groups(#"<h3[^>]*sale-name[^>]*>\s*<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>"#, in: chunk),
+                  let url = URL(string: title[0], relativeTo: site)?.absoluteURL else { continue }
+            let name = plainText(title[1])
+            let dates = groups(#"sale-date[^>]*>(.*?)</div>"#, in: chunk).map { plainText($0[0]) } ?? ""
+            var location = ""
+            if let start = chunk.range(of: "sale-location") {
+                let rest = chunk[start.upperBound...]
+                let end = rest.range(of: "sale-description")?.lowerBound ?? rest.endIndex
+                var segment = String(rest[..<end])
+                // Stop before the half-open tag that holds "sale-description".
+                if end != rest.endIndex, let open = segment.range(of: "<", options: .backwards) {
+                    segment = String(segment[..<open.lowerBound])
+                }
+                location = plainText(segment.replacingOccurrences(of: #"^[^>]*>"#, with: "", options: .regularExpression))
+            }
+            let cover = groups(#"<img[^>]*src="([^"]+)""#, in: chunk).flatMap { URL(string: $0[0], relativeTo: site)?.absoluteURL }
+            guard !name.isEmpty, !found.contains(where: { $0.url == url }) else { continue }
+            found.append(Catalogue(name: name, url: url, dates: dates, location: location, cover: cover, firstDay: firstDay(of: dates)))
+        }
+        if !found.isEmpty { return found }
+        // Fallback if the page layout changes: any link to a sale page with text.
+        let anchor = try! NSRegularExpression(pattern: #"<a[^>]*href="((?:https?://(?:www\.)?fasigtipton\.com)?/20\d\d/[A-Za-z0-9-]+)"[^>]*>([^<]+)</a>"#)
+        for m in anchor.matches(in: html, range: NSRange(html.startIndex..., in: html)) {
+            guard let r1 = Range(m.range(at: 1), in: html), let r2 = Range(m.range(at: 2), in: html),
+                  let url = URL(string: String(html[r1]), relativeTo: site)?.absoluteURL else { continue }
+            let name = plainText(String(html[r2]))
+            if !name.isEmpty, !found.contains(where: { $0.url == url }) {
+                found.append(Catalogue(name: name, url: url, dates: "", location: "", cover: nil, firstDay: nil))
+            }
+        }
+        return found
+    }
+
+    /// "Oct 19 - 22, 2026" → Oct 19, 2026.
+    static func firstDay(of dates: String) -> Date? {
+        guard let g = groups(#"([A-Z][a-z]{2})\.? (\d{1,2})\D.*?(\d{4})"#, in: dates) else { return nil }
+        return format("MMM d yyyy").date(from: "\(g[0]) \(g[1]) \(g[2])")
+    }
+
+    /// Text without tags, common entities decoded, spaces tidied.
+    static func plainText(_ html: String) -> String {
+        var text = html.replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
+        for (entity, char) in [("&amp;", "&"), ("&#039;", "'"), ("&#39;", "'"), ("&rsquo;", "’"), ("&lsquo;", "‘"),
+                               ("&quot;", "\""), ("&nbsp;", " "), ("&ndash;", "–"), ("&mdash;", "—"), ("&lt;", "<"), ("&gt;", ">")] {
+            text = text.replacingOccurrences(of: entity, with: char)
+        }
+        return text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// The capture groups of the first match, or nil.
+    private static func groups(_ pattern: String, in text: String) -> [String]? {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators, .caseInsensitive]),
+              let m = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else { return nil }
+        return (1..<m.numberOfRanges).map { i in Range(m.range(at: i), in: text).map { String(text[$0]) } ?? "" }
+    }
+
+    /// This year's sales (and next year's once it's autumn), newest first, as on fasigtipton.com.
+    static func catalogueList(now: Date = Date()) async throws -> [Catalogue] {
+        let calendar = Calendar(identifier: .gregorian)
+        let year = calendar.component(.year, from: now)
+        var years = [year]
+        if calendar.component(.month, from: now) >= 9 { years.insert(year + 1, at: 0) }
+        var all: [Catalogue] = []
+        var lastError: Error?
+        for y in years {
+            do {
+                let html = String(decoding: try await get(site.appendingPathComponent("catalogues/\(y)"), json: false), as: UTF8.self)
+                all += catalogues(fromHTML: html).filter { c in !all.contains { $0.url == c.url } }
+            } catch {
+                lastError = error
+            }
+        }
+        if all.isEmpty, let lastError { throw lastError }
+        return all.sorted { ($0.firstDay ?? .distantPast) > ($1.firstDay ?? .distantPast) }
+    }
+
     // MARK: Fetching
 
     /// Everything found for one sale, before it's imported.
