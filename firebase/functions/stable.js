@@ -105,6 +105,7 @@ const RUN = {
       },
     },
     earnings: { type: 'number', description: 'Dollars this horse earned in this race, from the Value of Race breakdown by its finishing position; 0 if out of the money.' },
+    speed: { type: ['integer', 'null'], description: 'Equibase Speed Figure for this horse in this race, only if the chart prints one.' },
     claimed: { type: ['string', 'null'], description: '"Claimed by … for $…" if this horse was claimed.' },
     trainer: { type: 'string', description: 'This horse’s trainer, from the Trainers list.' },
     owner: { type: 'string', description: 'This horse’s owner, from the Owners list.' },
@@ -253,6 +254,7 @@ function cleanRun(r) {
     comment: text(r.comment, 120),
     top3: Array.isArray(r.top3) ? r.top3.slice(0, 3).map(x => ({ name: text(x?.name, 60), weight: integer(x?.weight), lengths: text(x?.lengths, 12) })) : [],
     earnings: number(r.earnings) ?? 0,
+    speed: integer(r.speed),
     claimed: textOrNull(r.claimed, 120),
     trainer: text(r.trainer, 80),
     owner: text(r.owner, 120),
@@ -318,6 +320,151 @@ exports.readChart = onCall({ secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 300, 
     .map(h => ({ horseId: h.id, reason: reasons.get(nameKey(h.name)) || `${h.name} isn’t in this chart.` }));
   logger.info(`readChart: ${lines.length} line(s), ${notFound.length} not found`);
   return { lines, notFound };
+});
+
+// ---------- readEquibasePage ----------
+
+const PAGE_RACE = {
+  type: 'object',
+  properties: {
+    date: { type: 'string', description: 'YYYY-MM-DD' },
+    track: { type: 'string', description: `Equibase code from this list: ${TRACKS}; otherwise the code printed.` },
+    race: { type: ['integer', 'null'] },
+    finish: { type: ['integer', 'null'], description: 'Official finishing position.' },
+    speed: { type: ['integer', 'null'], description: 'Equibase Speed Figure for this race, if shown.' },
+    earnings: { type: ['number', 'null'], description: 'Money this horse earned in the race, if shown.' },
+    distanceF: { type: ['number', 'null'], description: 'Furlongs: 1 mile = 8, 1 mile 70 yards = 8.318, 1 1/16 miles = 8.5.' },
+    surface: { type: ['string', 'null'], enum: ['D', 'T', 'A', null] },
+    type: { type: ['string', 'null'], enum: [...TYPES, null] },
+    classText: { type: ['string', 'null'], description: 'Class as printed, shortened DRF style ("Md 30000", "Clm 16000N2L").' },
+    fieldSize: { type: ['integer', 'null'] },
+  },
+  required: ['date', 'track'],
+};
+
+const ENTRY = {
+  type: ['object', 'null'],
+  description: 'The next race (today or later) this horse is entered in, or null if none is shown.',
+  properties: {
+    date: { type: 'string', description: 'YYYY-MM-DD' },
+    trackName: str,
+    track: { type: 'string', description: 'Equibase track code.' },
+    race: { type: ['integer', 'null'] },
+    postTime: { type: ['string', 'null'], description: 'Post time as printed, e.g. "3:45 PM CT".' },
+    program: { type: ['string', 'null'], description: 'Program number, e.g. "4" or "1A".' },
+    postPosition: { type: ['integer', 'null'] },
+    morningLine: { type: ['string', 'null'], description: 'Morning line odds as printed, e.g. "5-2".' },
+    jockey: { type: ['string', 'null'], description: '"Last, First"' },
+    trainer: str,
+    weight: { type: ['integer', 'null'] },
+    medEq: { type: ['string', 'null'], description: 'Medication and equipment, e.g. "L b".' },
+    distanceF: { type: ['number', 'null'], description: 'Furlongs.' },
+    about: bool,
+    surface: { type: ['string', 'null'], enum: ['D', 'T', 'A', null] },
+    type: { type: ['string', 'null'], enum: [...TYPES, null] },
+    classText: { type: ['string', 'null'], description: 'Class shortened DRF style ("Md 30000", "Alw 50000N1X").' },
+    purse: num,
+    claimPrice: { type: ['number', 'null'], description: 'This horse’s claiming price if entered for one.' },
+    fieldSize: { type: ['integer', 'null'], description: 'Horses entered (not counting also-eligibles).' },
+    conditions: { type: ['string', 'null'], description: 'The race conditions, under 300 characters.' },
+    scratched: bool,
+  },
+  required: ['date', 'track'],
+};
+
+const PAGE_TOOL = {
+  name: 'report_horse_page',
+  description: 'Report the horse’s upcoming entry and its recent race results from this Equibase text.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      entry: ENTRY,
+      noEntryReason: { type: ['string', 'null'], description: 'If entry is null, why, in a few words.' },
+      races: { type: 'array', items: PAGE_RACE, description: 'Race results listed for this horse, newest first, at most 30.' },
+    },
+    required: ['races'],
+  },
+};
+
+function cleanEntry(r) {
+  if (!r || typeof r !== 'object') return null;
+  const date = isoDate(r.date);
+  if (!date) return null;
+  return {
+    date,
+    track: trackCode(r.track) || null,
+    trackName: textOrNull(r.trackName, 80),
+    race: integer(r.race),
+    postTime: textOrNull(r.postTime, 20),
+    program: textOrNull(r.program, 6),
+    postPosition: integer(r.postPosition),
+    morningLine: textOrNull(r.morningLine, 10),
+    jockey: textOrNull(r.jockey, 60),
+    trainer: textOrNull(r.trainer, 80),
+    weight: integer(r.weight),
+    medEq: textOrNull(r.medEq, 12),
+    distanceF: number(r.distanceF),
+    about: r.about === true,
+    surface: ['D', 'T', 'A'].includes(r.surface) ? r.surface : null,
+    type: TYPES.includes(r.type) ? r.type : null,
+    classText: textOrNull(r.classText, 40),
+    purse: number(r.purse),
+    claimPrice: number(r.claimPrice),
+    fieldSize: integer(r.fieldSize),
+    conditions: textOrNull(r.conditions, 400),
+    scratched: r.scratched === true,
+    source: 'pasted',
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function cleanPageRace(r) {
+  const date = isoDate(r?.date);
+  const track = trackCode(r?.track);
+  if (!date || !track) return null;
+  return {
+    date, track,
+    race: integer(r.race),
+    finish: integer(r.finish),
+    speed: integer(r.speed),
+    earnings: number(r.earnings),
+    distanceF: number(r.distanceF),
+    surface: ['D', 'T', 'A'].includes(r.surface) ? r.surface : null,
+    type: TYPES.includes(r.type) ? r.type : null,
+    classText: textOrNull(r.classText, 40),
+    fieldSize: integer(r.fieldSize),
+  };
+}
+
+/**
+ * data: { horse: {id, name}, text } — the horse's Equibase page (or a card's entries) copied from Safari.
+ * Returns { entry, noEntryReason, races }: the next race it's entered in, and its results with
+ * Equibase Speed Figures, for the app to add to the horse.
+ */
+exports.readEquibasePage = onCall({ secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 180, memory: '256MiB' }, async request => {
+  await requireStaff(request);
+  const data = request.data || {};
+  const name = text(data.horse?.name, 80);
+  if (!name) throw new HttpsError('invalid-argument', 'Which horse is this page for?');
+  const doc = documentBlock({ text: data.text });
+  const today = new Date().toISOString().slice(0, 10);
+  const r = await askClaude({
+    system: `You read text copied from Equibase pages about thoroughbreds: a horse's profile (results, entries,
+workouts) or a race card's entries. Today is ${today}. Report the next race the named horse is entered in
+(today or later; not workouts), and the race results listed for that horse with finishing position, Equibase
+Speed Figure and earnings where shown. Copy values exactly as printed; use null where the text doesn't say.`,
+    tool: PAGE_TOOL,
+    maxTokens: 6000,
+    content: [doc, { type: 'text', text: `Horse: ${name}` }],
+  });
+  const entry = cleanEntry(r.entry);
+  const races = (Array.isArray(r.races) ? r.races : []).map(cleanPageRace).filter(Boolean).slice(0, 30);
+  logger.info(`readEquibasePage: ${name} entry ${entry ? `${entry.date} ${entry.track}` : 'none'}, ${races.length} races`);
+  return {
+    entry: entry && entry.date >= today ? entry : null,
+    noEntryReason: entry && entry.date < today ? 'The only entry shown has already run.' : textOrNull(r.noEntryReason, 200),
+    races,
+  };
 });
 
 // ---------- readConditionBook ----------

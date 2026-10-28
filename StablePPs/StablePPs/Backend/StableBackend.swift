@@ -34,6 +34,26 @@ struct ChartReply: Decodable {
     var notFound: [Missing]
 }
 
+/// What Claude read from a horse's Equibase page: the race it's entered in and its results.
+struct EquibasePageReply: Decodable {
+    struct PageRace: Decodable {
+        var date: String
+        var track: String
+        var race: Int?
+        var finish: Int?
+        var speed: Int?
+        var earnings: Double?
+        var distanceF: Double?
+        var surface: String?
+        var type: String?
+        var classText: String?
+        var fieldSize: Int?
+    }
+    var entry: Entry?
+    var noEntryReason: String?
+    var races: [PageRace]
+}
+
 struct BookPartReply: Decodable {
     var races: [BookRace]
 }
@@ -195,6 +215,11 @@ final class StableBackend: @unchecked Sendable {
         if let pdf { data["pdf"] = pdf.base64EncodedString() }
         if let text { data["text"] = text }
         return try await callFunction("readChart", data, timeout: 300)
+    }
+
+    /// Claude reads text from a horse's Equibase page (copied, or read from the in-app browser).
+    func readEquibasePage(text: String, horse: Horse) async throws -> EquibasePageReply {
+        try await callFunction("readEquibasePage", ["text": text, "horse": ["id": horse.id, "name": horse.name]], timeout: 200)
     }
 
     /// Claude reads some pages of a condition book (a small PDF of just those pages).

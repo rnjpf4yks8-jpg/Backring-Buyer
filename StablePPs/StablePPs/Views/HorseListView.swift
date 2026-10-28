@@ -119,8 +119,16 @@ struct HorseRow: View {
                 Text(lastText(last, date))
                     .font(Theme.data(13))
                     .foregroundStyle(Theme.ink)
+                Text("Last: " + Summary.lastResult(last))
+                    .font(Theme.data(13, .semibold))
+                    .foregroundStyle(last.finish == 1 ? Theme.good : Theme.ink)
             } else {
                 Text("No races in the app yet").font(.footnote).foregroundStyle(Theme.muted)
+            }
+            if let entry = horse.entry, entry.isUpcoming(today: Dates.today()) {
+                Text(Summary.entryShort(entry))
+                    .font(Theme.data(13, .semibold))
+                    .foregroundStyle(entry.scratched == true ? Theme.muted : Theme.dirt)
             }
         }
         .padding(.vertical, 2)

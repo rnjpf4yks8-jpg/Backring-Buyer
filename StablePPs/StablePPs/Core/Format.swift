@@ -299,6 +299,76 @@ enum Records {
     static func lastRace(_ lines: [RaceLine]) -> Horse.LastRace? {
         guard let last = Records.sorted(lines).first else { return nil }
         return Horse.LastRace(date: last.date, track: last.track, race: last.race, distanceF: last.distanceF,
-                              surface: last.surface ?? "D", finish: last.finish?.pos, classText: last.classText)
+                              surface: last.surface ?? "D", finish: last.finish?.pos, classText: last.classText,
+                              lengths: last.finish?.lengths, fieldSize: last.fieldSize, beyer: last.beyer,
+                              speed: last.speed, earnings: last.earnings ?? 0, lineID: last.id)
+    }
+}
+
+// MARK: Entries and last race, as the horse page and list show them
+
+enum Summary {
+    /// "Sat Nov 14 · Delta Downs · Race 5"
+    static func entryWhen(_ e: Entry) -> String {
+        var parts = [Dates.nice(e.date)]
+        parts.append(Track.find(e.track)?.name ?? e.trackName ?? e.track ?? "")
+        if let race = e.race { parts.append("Race \(race)") }
+        if let time = e.postTime, !time.isEmpty { parts.append(time) }
+        return parts.filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    /// "6f dirt · Md 30000 · purse $28,000"
+    static func entryRace(_ e: Entry) -> String {
+        var parts: [String] = []
+        let dist = DRF.dist(e.distanceF, about: e.about ?? false)
+        if !dist.isEmpty { parts.append("\(dist) \(DRF.surfaceWord(e.surface))") }
+        if let cls = e.classText, !cls.isEmpty { parts.append(cls) }
+        else if let type = e.type, let word = DRF.typeWord[type] { parts.append(word) }
+        if let purse = e.purse, purse > 0 { parts.append("purse \(DRF.money(purse))") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// "Post 4 · ML 5-2 · Gonzalez R · 122 L · 9 entered"
+    static func entryHorse(_ e: Entry) -> String {
+        var parts: [String] = []
+        if let pp = e.postPosition { parts.append("Post \(pp)") }
+        else if let program = e.program, !program.isEmpty { parts.append("#\(program)") }
+        if let ml = e.morningLine, !ml.isEmpty { parts.append("ML \(ml)") }
+        let jockey = DRF.jockey(e.jockey)
+        if !jockey.isEmpty { parts.append(jockey) }
+        let wt = [e.weight.map(String.init), e.medEq].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " ")
+        if !wt.isEmpty { parts.append(wt) }
+        if let field = e.fieldSize, field > 0 { parts.append("\(field) entered") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// The horse list's one-liner: "Entered Sat Nov 14 DeD R5".
+    static func entryShort(_ e: Entry) -> String {
+        var s = "Entered \(Dates.nice(e.date)) \(DRF.trk(e.track))"
+        if let race = e.race { s += " R\(race)" }
+        if e.scratched == true { s += " (scratched)" }
+        return s
+    }
+
+    /// "Beyer 72", or the Equibase Speed Figure when there's no Beyer: "Speed 68".
+    static func figure(beyer: Int?, speed: Int?) -> String {
+        if let beyer { return "Beyer \(beyer)" }
+        if let speed { return "Speed \(speed)" }
+        return "Beyer –"
+    }
+
+    /// "2nd of 9 (1½) · Beyer 72 · Won $4,000"
+    static func lastResult(_ l: Horse.LastRace) -> String {
+        var parts: [String] = []
+        if let pos = l.finish {
+            var place = DRF.ordinal(pos)
+            if let field = l.fieldSize, field > 0 { place += " of \(field)" }
+            let len = DRF.len(l.lengths)
+            if !len.isEmpty { place += " (\(len))" }
+            parts.append(place)
+        }
+        parts.append(figure(beyer: l.beyer, speed: l.speed))
+        parts.append("Won \(DRF.money(l.earnings ?? 0))")
+        return parts.joined(separator: " · ")
     }
 }

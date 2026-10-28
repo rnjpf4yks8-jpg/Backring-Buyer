@@ -27,6 +27,7 @@ struct Horse: Codable, Identifiable, Hashable {
     var known: Known?           // lifetime record when not every start is in the app
     var record: Record?
     var lastRace: LastRace?
+    var entry: Entry?           // the race it's entered in next
     var createdAt: String?
     var updatedAt: String?
     var source: String?
@@ -44,6 +45,12 @@ struct Horse: Codable, Identifiable, Hashable {
         var surface: String?
         var finish: Int?
         var classText: String?
+        var lengths: String?
+        var fieldSize: Int?
+        var beyer: Int?
+        var speed: Int?
+        var earnings: Double?
+        var lineID: String?
     }
 
     init(id: String, name: String) {
@@ -53,6 +60,41 @@ struct Horse: Codable, Identifiable, Hashable {
 
     var isFemale: Bool { sex == "F" || sex == "M" }
     var bredIn: String? { stateBred.flatMap { $0.isEmpty ? nil : $0 } }
+}
+
+/// A race the horse is entered in, read from Equibase's entries (pasted) or typed in.
+struct Entry: Codable, Hashable {
+    var date: String            // YYYY-MM-DD
+    var track: String?          // Equibase code
+    var trackName: String?
+    var race: Int?
+    var postTime: String?       // as printed, e.g. "3:45 PM CT"
+    var program: String?        // program number, e.g. "4" or "1A"
+    var postPosition: Int?
+    var morningLine: String?    // e.g. "5-2"
+    var jockey: String?
+    var trainer: String?
+    var weight: Int?
+    var medEq: String?
+    var distanceF: Double?
+    var about: Bool?
+    var surface: String?        // D, T, A
+    var type: String?           // MSW, MCL, CLM, STR, ALW, AOC, STK, HCP, OTHER
+    var classText: String?
+    var purse: Double?
+    var claimPrice: Double?
+    var fieldSize: Int?
+    var conditions: String?
+    var scratched: Bool?
+    var source: String?         // pasted or hand
+    var updatedAt: String?
+
+    init(date: String) {
+        self.date = date
+    }
+
+    /// Still to come (today counts).
+    func isUpcoming(today: String) -> Bool { date >= today }
 }
 
 /// Starts, wins, places, shows and money won.
@@ -124,7 +166,8 @@ struct RaceLine: Codable, Identifiable, Hashable {
     var owner: String?
     var conditions: String?
     var beyer: Int?
-    var source: String?         // chart or hand
+    var speed: Int?             // Equibase Speed Figure
+    var source: String?         // chart, hand or equibase page
     var updatedAt: String?
 
     init(id: String) {

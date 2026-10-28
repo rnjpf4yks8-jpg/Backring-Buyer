@@ -8,7 +8,7 @@ struct PPTable: View {
     /// Column widths, shared by the header and every line.
     private enum W {
         static let date: CGFloat = 88, cond: CGFloat = 40, dist: CGFloat = 44, times: CGFloat = 196
-        static let age: CGFloat = 32, cls: CGFloat = 118, beyer: CGFloat = 38, small: CGFloat = 24
+        static let age: CGFloat = 32, cls: CGFloat = 118, beyer: CGFloat = 38, speed: CGFloat = 32, small: CGFloat = 24
         static let call: CGFloat = 36, fin: CGFloat = 42, jockey: CGFloat = 92, wt: CGFloat = 56
         static let odds: CGFloat = 50, top: CGFloat = 300, comment: CGFloat = 220, money: CGFloat = 72
     }
@@ -46,6 +46,7 @@ struct PPTable: View {
             cell(Text("Age"), W.age)
             cell(Text("Race type"), W.cls)
             cell(Text("Beyer"), W.beyer)
+            cell(Text("Spd"), W.speed)
             cell(Text("PP"), W.small)
             cell(Text("St"), W.small)
             cell(Text("1c"), W.call)
@@ -77,6 +78,7 @@ struct PPTable: View {
             cell(Text(verbatim: (l.ages ?? "") + (l.fillies == true ? "f" : "")), W.age)
             cell(Text(verbatim: (l.classText ?? "").isEmpty ? (l.type ?? "") : (l.classText ?? "")), W.cls)
             cell(Text(verbatim: l.beyer.map(String.init) ?? "–").foregroundStyle(l.beyer == nil ? Theme.muted : Theme.ink), W.beyer)
+            cell(Text(verbatim: l.speed.map(String.init) ?? "–").foregroundStyle(l.speed == nil ? Theme.muted : Theme.ink), W.speed)
             cell(Text(verbatim: l.postPosition.map(String.init) ?? ""), W.small)
             cell(Text(verbatim: l.start.map(String.init) ?? ""), W.small)
             ForEach(0..<3, id: \.self) { i in
@@ -145,6 +147,7 @@ struct PPCards: View {
         var tail = "Won \(DRF.money(l.earnings ?? 0))"
         if let comment = l.comment, !comment.isEmpty { tail += " · \(comment)" }
         if let beyer = l.beyer { tail += " · Beyer \(beyer)" }
+        if let speed = l.speed { tail += " · Speed \(speed)" }
         return Card {
             Text(verbatim: head).font(Theme.data(14, .semibold)).foregroundStyle(Theme.ink)
             Text("Finished **\(place)**\(beaten.isEmpty ? "" : " (\(beaten))") of \(field)")

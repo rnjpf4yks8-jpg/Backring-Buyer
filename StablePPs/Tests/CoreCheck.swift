@@ -98,6 +98,30 @@ struct CoreCheck {
         same(Track.find("Delta Downs")?.code, "DED", "track by name")
         same(Track.find("Fair Grounds Race Course")?.code, "FG", "track by longer name")
 
+        // Last race and entry summaries
+        var line = RaceLine(id: "x")
+        line.date = "2026-10-12"; line.track = "DED"; line.race = 2; line.fieldSize = 9
+        line.finish = Finish(pos: 2, lengths: "1 1/2"); line.beyer = 72; line.earnings = 4000
+        var older = RaceLine(id: "y")
+        older.date = "2026-09-01"; older.finish = Finish(pos: 1)
+        let last = Records.lastRace([older, line])
+        same(last?.lineID, "x", "last race is the newest line")
+        same(last.map(Summary.lastResult), "2nd of 9 (1½) · Beyer 72 · Won $4,000", "last race summary")
+        var noBeyer = last!
+        noBeyer.beyer = nil; noBeyer.earnings = 0; noBeyer.fieldSize = nil; noBeyer.lengths = nil
+        same(Summary.lastResult(noBeyer), "2nd · Beyer – · Won $0", "last race without Beyer")
+        noBeyer.speed = 68
+        same(Summary.lastResult(noBeyer), "2nd · Speed 68 · Won $0", "last race with only an Equibase Speed Figure")
+        var entry = Entry(date: "2026-11-14")
+        entry.track = "DED"; entry.race = 5; entry.postPosition = 4; entry.morningLine = "5-2"
+        entry.jockey = "Gonzalez, Ricardo"; entry.weight = 122; entry.medEq = "L"; entry.fieldSize = 9
+        entry.distanceF = 6; entry.surface = "D"; entry.classText = "Md 30000"; entry.purse = 28000
+        same(Summary.entryWhen(entry), "Sat Nov 14 · Delta Downs · Race 5", "entry when")
+        same(Summary.entryRace(entry), "6f dirt · Md 30000 · purse $28,000", "entry race")
+        same(Summary.entryHorse(entry), "Post 4 · ML 5-2 · Gonzalez R · 122 L · 9 entered", "entry horse")
+        same(Summary.entryShort(entry), "Entered Sat Nov 14 DeD R5", "entry one-liner")
+        check(entry.isUpcoming(today: "2026-11-14") && !entry.isUpcoming(today: "2026-11-15"), "entry upcoming through race day")
+
         // Record boxes
         for horse in fx.horses {
             let want = fx.fmt.boxes[horse.id] ?? []
