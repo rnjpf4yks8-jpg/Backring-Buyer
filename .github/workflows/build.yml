@@ -37,3 +37,28 @@ jobs:
         with:
           name: build-log
           path: build.log
+
+  # Stable PPs (StablePPs/), the second app in this repo.
+  stablepps:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check PP formatting and race matching
+        run: |
+          swiftc -parse-as-library StablePPs/StablePPs/Core/*.swift StablePPs/Tests/CoreCheck.swift -o "$RUNNER_TEMP/pp-check"
+          "$RUNNER_TEMP/pp-check" | grep -v "^ok"
+      - name: Build for simulator
+        run: |
+          set -o pipefail
+          xcodebuild -project StablePPs/StablePPs.xcodeproj -scheme StablePPs \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee stablepps.log | grep -E "error:|warning: .*StablePPs/|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" stablepps.log
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stablepps-build-log
+          path: stablepps.log

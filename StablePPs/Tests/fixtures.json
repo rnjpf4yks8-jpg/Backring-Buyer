@@ -1,0 +1,1715 @@
+{
+ "today": "2026-10-28",
+ "horses": [
+  {
+   "id": "filly",
+   "name": "Authentic Queen",
+   "sex": "F",
+   "foalYear": 2023,
+   "stateBred": "LA"
+  },
+  {
+   "id": "geld",
+   "name": "Voldemort",
+   "sex": "G",
+   "foalYear": 2022,
+   "stateBred": ""
+  },
+  {
+   "id": "baby",
+   "name": "Brand Liam",
+   "sex": "C",
+   "foalYear": 2024,
+   "homeTrack": "DED"
+  },
+  {
+   "id": "known",
+   "name": "Vekowin",
+   "sex": "R",
+   "foalYear": 2022,
+   "known": {
+    "starts": 9,
+    "wins": 2
+   }
+  }
+ ],
+ "lines": {
+  "filly": [
+   {
+    "id": "a",
+    "date": "2026-06-01",
+    "track": "LAD",
+    "race": 3,
+    "surface": "D",
+    "distanceF": 6,
+    "condition": "fst",
+    "type": "MSW",
+    "fieldSize": 9,
+    "finish": {
+     "pos": 5,
+     "lengths": "6 1/2"
+    },
+    "earnings": 600
+   },
+   {
+    "id": "b",
+    "date": "2026-07-10",
+    "track": "LAD",
+    "race": 5,
+    "surface": "D",
+    "distanceF": 6.5,
+    "condition": "sly",
+    "type": "MSW",
+    "fieldSize": 8,
+    "finish": {
+     "pos": 3,
+     "lengths": "2"
+    },
+    "earnings": 2400
+   },
+   {
+    "id": "c",
+    "date": "2026-10-12",
+    "track": "DED",
+    "race": 2,
+    "surface": "D",
+    "distanceF": 5,
+    "condition": "fst",
+    "type": "MCL",
+    "claimPrice": 25000,
+    "fieldSize": 10,
+    "finish": {
+     "pos": 2,
+     "lengths": "Head"
+    },
+    "earnings": 4000
+   }
+  ],
+  "geld": [
+   {
+    "id": "d",
+    "date": "2025-12-20",
+    "track": "FG",
+    "race": 4,
+    "surface": "T",
+    "distanceF": 8.5,
+    "condition": "fm",
+    "type": "CLM",
+    "claimPrice": 15000,
+    "fieldSize": 10,
+    "finish": {
+     "pos": 7,
+     "lengths": "9"
+    },
+    "earnings": 0
+   },
+   {
+    "id": "e",
+    "date": "2026-08-15",
+    "track": "EVD",
+    "race": 6,
+    "surface": "D",
+    "distanceF": 8.318,
+    "condition": "fst",
+    "type": "CLM",
+    "claimPrice": 10000,
+    "fieldSize": 8,
+    "finish": {
+     "pos": 1,
+     "lengths": "1 1/2"
+    },
+    "earnings": 9000
+   },
+   {
+    "id": "f",
+    "date": "2026-10-01",
+    "track": "EVD",
+    "race": 1,
+    "surface": "D",
+    "distanceF": 8,
+    "condition": "my",
+    "type": "CLM",
+    "claimPrice": 12500,
+    "fieldSize": 7,
+    "finish": {
+     "pos": 4,
+     "lengths": "3 3/4"
+    },
+    "earnings": 500
+   }
+  ],
+  "baby": [],
+  "known": [
+   {
+    "id": "g",
+    "date": "2026-10-20",
+    "track": "HOU",
+    "race": 8,
+    "surface": "D",
+    "distanceF": 7,
+    "condition": "fst",
+    "type": "ALW",
+    "fieldSize": 6,
+    "finish": {
+     "pos": 2,
+     "lengths": "nk"
+    },
+    "earnings": 6000
+   }
+  ]
+ },
+ "books": [
+  {
+   "id": "DED-b1",
+   "track": "DED",
+   "trackName": "Delta Downs",
+   "title": "Book 1",
+   "races": [
+    {
+     "ages": "2",
+     "sex": "O",
+     "stateBred": null,
+     "maiden": true,
+     "nw": null,
+     "starter": null,
+     "surface": "D",
+     "raceNo": "1",
+     "date": "2026-11-05",
+     "type": "MSW",
+     "distanceF": 5,
+     "purse": 30000
+    },
+    {
+     "ages": "3U",
+     "sex": "F",
+     "stateBred": null,
+     "maiden": true,
+     "nw": null,
+     "starter": null,
+     "surface": "D",
+     "raceNo": "2",
+     "date": "2026-11-06",
+     "type": "MCL",
+     "claim": 20000,
+     "distanceF": 6,
+     "purse": 15000
+    },
+    {
+     "ages": "3U",
+     "sex": "O",
+     "stateBred": null,
+     "maiden": true,
+     "nw": null,
+     "starter": null,
+     "surface": "D",
+     "raceNo": "3",
+     "date": "2026-11-07",
+     "type": "MCL",
+     "claim": 30000,
+     "distanceF": 6.5,
+     "purse": 18000
+    },
+    {
+     "ages": "3U",
+     "sex": "O",
+     "stateBred": null,
+     "maiden": false,
+     "nw": {
+      "kind": "lifetime",
+      "n": 2
+     },
+     "starter": null,
+     "surface": "D",
+     "raceNo": "4",
+     "date": "2026-11-07",
+     "type": "CLM",
+     "claim": 12500,
+     "claimLow": 10000,
+     "distanceF": 8.318
+    },
+    {
+     "ages": "3U",
+     "sex": "O",
+     "stateBred": "LA",
+     "maiden": false,
+     "nw": {
+      "kind": "otherThan",
+      "n": 1
+     },
+     "starter": null,
+     "surface": "D",
+     "raceNo": "5",
+     "date": "2026-11-08",
+     "type": "ALW",
+     "distanceF": 7
+    },
+    {
+     "ages": "3U",
+     "sex": "O",
+     "stateBred": null,
+     "maiden": false,
+     "nw": null,
+     "starter": {
+      "claim": 10000,
+      "since": "2026-01-01"
+     },
+     "surface": "D",
+     "raceNo": "6",
+     "date": "2026-11-08",
+     "type": "STR",
+     "distanceF": 8
+    },
+    {
+     "ages": "3U",
+     "sex": "O",
+     "stateBred": null,
+     "maiden": false,
+     "nw": null,
+     "starter": null,
+     "surface": "D",
+     "raceNo": "7",
+     "date": "2026-11-09",
+     "type": "STK",
+     "name": "Delta Mile",
+     "distanceF": 8,
+     "purse": 100000
+    },
+    {
+     "ages": "3U",
+     "sex": "O",
+     "stateBred": null,
+     "maiden": false,
+     "nw": null,
+     "starter": null,
+     "surface": "D",
+     "raceNo": "8",
+     "date": "2026-10-01",
+     "type": "CLM",
+     "claim": 5000,
+     "distanceF": 6
+    },
+    {
+     "ages": "3U",
+     "sex": "O",
+     "stateBred": null,
+     "maiden": false,
+     "nw": {
+      "kind": "since",
+      "n": 1,
+      "since": "2026-05-01"
+     },
+     "starter": null,
+     "surface": "T",
+     "raceNo": "9",
+     "date": "2026-11-10",
+     "type": "CLM",
+     "claim": 25000,
+     "distanceF": 9
+    },
+    {
+     "ages": "2",
+     "sex": "F",
+     "stateBred": null,
+     "maiden": false,
+     "nw": null,
+     "starter": null,
+     "surface": "D",
+     "raceNo": "10",
+     "date": "2026-10-30",
+     "type": "AOC",
+     "claim": 40000,
+     "distanceF": 6
+    }
+   ]
+  },
+  {
+   "id": "FG-b1",
+   "track": "FG",
+   "trackName": "Fair Grounds",
+   "title": "Opening",
+   "races": [
+    {
+     "ages": "2",
+     "sex": "O",
+     "stateBred": null,
+     "maiden": true,
+     "nw": null,
+     "starter": null,
+     "surface": "T",
+     "raceNo": "1",
+     "date": "2026-11-21",
+     "type": "MSW",
+     "distanceF": 8.5
+    },
+    {
+     "ages": "3U",
+     "sex": "O",
+     "stateBred": null,
+     "maiden": false,
+     "nw": null,
+     "starter": null,
+     "surface": "T",
+     "raceNo": "2",
+     "date": "2026-11-22",
+     "type": "CLM",
+     "claim": 15000,
+     "distanceF": 8.5
+    }
+   ]
+  },
+  {
+   "id": "HOU-b1",
+   "track": "HOU",
+   "trackName": "Sam Houston",
+   "title": "Fall",
+   "races": [
+    {
+     "ages": "4U",
+     "sex": "O",
+     "stateBred": null,
+     "maiden": false,
+     "nw": {
+      "kind": "otherThan",
+      "n": 2
+     },
+     "starter": null,
+     "surface": "D",
+     "raceNo": "4",
+     "date": "2026-11-02",
+     "type": "ALW",
+     "distanceF": 7
+    }
+   ]
+  },
+  {
+   "id": "OP-b1",
+   "track": "OP",
+   "trackName": "Oaklawn Park",
+   "title": "Far",
+   "races": [
+    {
+     "ages": "3U",
+     "sex": "O",
+     "stateBred": null,
+     "maiden": false,
+     "nw": null,
+     "starter": null,
+     "surface": "D",
+     "raceNo": "1",
+     "date": "2026-12-26",
+     "type": "MSW",
+     "distanceF": 6
+    }
+   ]
+  }
+ ],
+ "best": {
+  "filly": {
+   "from": "DED",
+   "matches": [
+    {
+     "book": "DED-b1",
+     "date": "2026-11-06",
+     "raceNo": "2",
+     "miles": 0,
+     "status": "eligible",
+     "score": 95,
+     "blockers": [],
+     "checks": [],
+     "reasons": [
+      "Maiden claiming for $20,000; last ran for $25,000.",
+      "2 good efforts within a furlong of 6f."
+     ],
+     "chips": [
+      "25 days after last race"
+     ],
+     "title": "Maiden claiming $20,000",
+     "who": "3yo & up fillies & mares · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-07",
+     "raceNo": "3",
+     "miles": 0,
+     "status": "eligible",
+     "score": 95,
+     "blockers": [],
+     "checks": [],
+     "reasons": [
+      "Maiden claiming for $30,000; last ran for $25,000.",
+      "1 good effort within a furlong of 6½f."
+     ],
+     "chips": [
+      "26 days after last race"
+     ],
+     "title": "Maiden claiming $30,000",
+     "who": "3yo & up · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-08",
+     "raceNo": "5",
+     "miles": 0,
+     "status": "eligible",
+     "score": 71,
+     "blockers": [],
+     "checks": [],
+     "reasons": [
+      "1 good effort within a furlong of 7f."
+     ],
+     "chips": [
+      "27 days after last race"
+     ],
+     "title": "Allowance",
+     "who": "3yo & up · LA-bred · NW1X"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-07",
+     "raceNo": "4",
+     "miles": 0,
+     "status": "eligible",
+     "score": 54,
+     "blockers": [],
+     "checks": [],
+     "reasons": [
+      "New distance type: has not run near 1m70."
+     ],
+     "chips": [
+      "26 days after last race"
+     ],
+     "title": "Claiming $10,000–$12,500",
+     "who": "3yo & up · NW2L"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-09",
+     "raceNo": "7",
+     "miles": 0,
+     "status": "eligible",
+     "score": 54,
+     "blockers": [],
+     "checks": [],
+     "reasons": [
+      "New distance type: has not run near 1m."
+     ],
+     "chips": [
+      "28 days after last race"
+     ],
+     "title": "Delta Mile",
+     "who": "3yo & up"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-10",
+     "raceNo": "9",
+     "miles": 0,
+     "status": "eligible",
+     "score": 44,
+     "blockers": [],
+     "checks": [],
+     "reasons": [
+      "New distance type: has not run near 1⅛.",
+      "Would be first time on turf."
+     ],
+     "chips": [
+      "29 days after last race"
+     ],
+     "title": "Claiming $25,000",
+     "who": "3yo & up · NW1 since 2026-05-01"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-10-30",
+     "raceNo": "10",
+     "miles": 0,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 2-year-olds; Authentic Queen is 3."
+     ],
+     "checks": [],
+     "reasons": [
+      "2 good efforts within a furlong of 6f."
+     ],
+     "chips": [
+      "18 days after last race"
+     ],
+     "title": "Allowance optional claiming $40,000",
+     "who": "2yo fillies"
+    },
+    {
+     "book": "HOU-b1",
+     "date": "2026-11-02",
+     "raceNo": "4",
+     "miles": 118,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 4-year-olds and up; Authentic Queen is 3."
+     ],
+     "checks": [],
+     "reasons": [
+      "1 good effort within a furlong of 7f."
+     ],
+     "chips": [
+      "21 days after last race"
+     ],
+     "title": "Allowance",
+     "who": "4yo & up · NW2X"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-05",
+     "raceNo": "1",
+     "miles": 0,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 2-year-olds; Authentic Queen is 3."
+     ],
+     "checks": [],
+     "reasons": [
+      "Has run well against maiden special weight company.",
+      "1 good effort within a furlong of 5f."
+     ],
+     "chips": [
+      "24 days after last race"
+     ],
+     "title": "Maiden special weight",
+     "who": "2yo · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-08",
+     "raceNo": "6",
+     "miles": 0,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "Starter allowance: must have started for $10,000 or less since 2026-01-01."
+     ],
+     "checks": [],
+     "reasons": [
+      "New distance type: has not run near 1m."
+     ],
+     "chips": [
+      "27 days after last race"
+     ],
+     "title": "Starter allowance",
+     "who": "3yo & up"
+    }
+   ]
+  },
+  "geld": {
+   "from": "EVD",
+   "matches": [
+    {
+     "book": "DED-b1",
+     "date": "2026-11-07",
+     "raceNo": "4",
+     "miles": 93,
+     "status": "eligible",
+     "score": 94,
+     "blockers": [],
+     "checks": [],
+     "reasons": [
+      "Claiming for $12,500 vs. last tag $12,500.",
+      "2 good efforts within a furlong of 1m70."
+     ],
+     "chips": [
+      "37 days after last race"
+     ],
+     "title": "Claiming $10,000–$12,500",
+     "who": "3yo & up · NW2L"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-08",
+     "raceNo": "6",
+     "miles": 93,
+     "status": "eligible",
+     "score": 87,
+     "blockers": [],
+     "checks": [],
+     "reasons": [
+      "Starter allowance: protected spot if eligible.",
+      "2 good efforts within a furlong of 1m."
+     ],
+     "chips": [
+      "38 days after last race"
+     ],
+     "title": "Starter allowance",
+     "who": "3yo & up"
+    },
+    {
+     "book": "FG-b1",
+     "date": "2026-11-22",
+     "raceNo": "2",
+     "miles": 124,
+     "status": "eligible",
+     "score": 79,
+     "blockers": [],
+     "checks": [],
+     "reasons": [
+      "Claiming for $15,000 vs. last tag $12,500.",
+      "2 good efforts within a furlong of 1¹⁄₁₆.",
+      "Hasn't run well on turf yet."
+     ],
+     "chips": [
+      "52 days after last race"
+     ],
+     "title": "Claiming $15,000",
+     "who": "3yo & up"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-09",
+     "raceNo": "7",
+     "miles": 93,
+     "status": "eligible",
+     "score": 69,
+     "blockers": [],
+     "checks": [],
+     "reasons": [
+      "Stakes would be a big class jump.",
+      "2 good efforts within a furlong of 1m."
+     ],
+     "chips": [
+      "39 days after last race"
+     ],
+     "title": "Delta Mile",
+     "who": "3yo & up"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-08",
+     "raceNo": "5",
+     "miles": 93,
+     "status": "check",
+     "score": 89,
+     "blockers": [],
+     "checks": [
+      "LA-bred only; set where Voldemort was bred"
+     ],
+     "reasons": [
+      "Recent top-three or winning form fits allowance company.",
+      "1 good effort within a furlong of 7f."
+     ],
+     "chips": [
+      "38 days after last race"
+     ],
+     "title": "Allowance",
+     "who": "3yo & up · LA-bred · NW1X"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-10-30",
+     "raceNo": "10",
+     "miles": 93,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 2-year-olds; Voldemort is 4.",
+      "Fillies and mares only."
+     ],
+     "checks": [],
+     "reasons": [
+      "Recent top-three or winning form fits allowance company.",
+      "New distance type: has not run near 6f."
+     ],
+     "chips": [
+      "29 days after last race"
+     ],
+     "title": "Allowance optional claiming $40,000",
+     "who": "2yo fillies"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-05",
+     "raceNo": "1",
+     "miles": 93,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 2-year-olds; Voldemort is 4.",
+      "For maidens; already a winner."
+     ],
+     "checks": [],
+     "reasons": [
+      "New distance type: has not run near 5f."
+     ],
+     "chips": [
+      "35 days after last race"
+     ],
+     "title": "Maiden special weight",
+     "who": "2yo · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-06",
+     "raceNo": "2",
+     "miles": 93,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "Fillies and mares only.",
+      "For maidens; already a winner."
+     ],
+     "checks": [],
+     "reasons": [
+      "New distance type: has not run near 6f."
+     ],
+     "chips": [
+      "36 days after last race"
+     ],
+     "title": "Maiden claiming $20,000",
+     "who": "3yo & up fillies & mares · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-07",
+     "raceNo": "3",
+     "miles": 93,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For maidens; already a winner."
+     ],
+     "checks": [],
+     "reasons": [
+      "New distance type: has not run near 6½f."
+     ],
+     "chips": [
+      "37 days after last race"
+     ],
+     "title": "Maiden claiming $30,000",
+     "who": "3yo & up · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-10",
+     "raceNo": "9",
+     "miles": 93,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "Has won since 2026-05-01."
+     ],
+     "checks": [],
+     "reasons": [
+      "Claiming for $25,000 vs. last tag $12,500.",
+      "2 good efforts within a furlong of 1⅛.",
+      "Hasn't run well on turf yet."
+     ],
+     "chips": [
+      "40 days after last race"
+     ],
+     "title": "Claiming $25,000",
+     "who": "3yo & up · NW1 since 2026-05-01"
+    },
+    {
+     "book": "FG-b1",
+     "date": "2026-11-21",
+     "raceNo": "1",
+     "miles": 124,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 2-year-olds; Voldemort is 4.",
+      "For maidens; already a winner."
+     ],
+     "checks": [],
+     "reasons": [
+      "2 good efforts within a furlong of 1¹⁄₁₆.",
+      "Hasn't run well on turf yet."
+     ],
+     "chips": [
+      "51 days after last race"
+     ],
+     "title": "Maiden special weight",
+     "who": "2yo · maidens"
+    }
+   ]
+  },
+  "baby": {
+   "from": "DED",
+   "matches": [
+    {
+     "book": "DED-b1",
+     "date": "2026-11-05",
+     "raceNo": "1",
+     "miles": 0,
+     "status": "eligible",
+     "score": 69,
+     "blockers": [],
+     "checks": [],
+     "reasons": [
+      "First-time starter: maiden special weight is the usual debut."
+     ],
+     "chips": [],
+     "title": "Maiden special weight",
+     "who": "2yo · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-10-30",
+     "raceNo": "10",
+     "miles": 0,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "Fillies and mares only."
+     ],
+     "checks": [],
+     "reasons": [],
+     "chips": [],
+     "title": "Allowance optional claiming $40,000",
+     "who": "2yo fillies"
+    },
+    {
+     "book": "HOU-b1",
+     "date": "2026-11-02",
+     "raceNo": "4",
+     "miles": 118,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 4-year-olds and up; Brand Liam is 2."
+     ],
+     "checks": [],
+     "reasons": [],
+     "chips": [],
+     "title": "Allowance",
+     "who": "4yo & up · NW2X"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-06",
+     "raceNo": "2",
+     "miles": 0,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 3-year-olds and up; Brand Liam is 2.",
+      "Fillies and mares only."
+     ],
+     "checks": [],
+     "reasons": [
+      "First-time starter: maiden claiming is an option if you'd risk a claim."
+     ],
+     "chips": [],
+     "title": "Maiden claiming $20,000",
+     "who": "3yo & up fillies & mares · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-07",
+     "raceNo": "3",
+     "miles": 0,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 3-year-olds and up; Brand Liam is 2."
+     ],
+     "checks": [],
+     "reasons": [
+      "First-time starter: maiden claiming is an option if you'd risk a claim."
+     ],
+     "chips": [],
+     "title": "Maiden claiming $30,000",
+     "who": "3yo & up · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-07",
+     "raceNo": "4",
+     "miles": 0,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 3-year-olds and up; Brand Liam is 2."
+     ],
+     "checks": [],
+     "reasons": [],
+     "chips": [],
+     "title": "Claiming $10,000–$12,500",
+     "who": "3yo & up · NW2L"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-08",
+     "raceNo": "5",
+     "miles": 0,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 3-year-olds and up; Brand Liam is 2."
+     ],
+     "checks": [
+      "LA-bred only; set where Brand Liam was bred"
+     ],
+     "reasons": [],
+     "chips": [],
+     "title": "Allowance",
+     "who": "3yo & up · LA-bred · NW1X"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-08",
+     "raceNo": "6",
+     "miles": 0,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 3-year-olds and up; Brand Liam is 2.",
+      "Starter allowance: must have started for $10,000 or less since 2026-01-01."
+     ],
+     "checks": [],
+     "reasons": [],
+     "chips": [],
+     "title": "Starter allowance",
+     "who": "3yo & up"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-09",
+     "raceNo": "7",
+     "miles": 0,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 3-year-olds and up; Brand Liam is 2."
+     ],
+     "checks": [],
+     "reasons": [],
+     "chips": [],
+     "title": "Delta Mile",
+     "who": "3yo & up"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-10",
+     "raceNo": "9",
+     "miles": 0,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 3-year-olds and up; Brand Liam is 2."
+     ],
+     "checks": [],
+     "reasons": [],
+     "chips": [],
+     "title": "Claiming $25,000",
+     "who": "3yo & up · NW1 since 2026-05-01"
+    }
+   ]
+  },
+  "known": {
+   "from": "HOU",
+   "matches": [
+    {
+     "book": "HOU-b1",
+     "date": "2026-11-02",
+     "raceNo": "4",
+     "miles": 0,
+     "status": "check",
+     "score": 88,
+     "blockers": [],
+     "checks": [
+      "Only 1 of 9 starts are in the app"
+     ],
+     "reasons": [
+      "Recent top-three or winning form fits allowance company.",
+      "1 good effort within a furlong of 7f."
+     ],
+     "chips": [
+      "13 days after last race!"
+     ],
+     "title": "Allowance",
+     "who": "4yo & up · NW2X"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-08",
+     "raceNo": "5",
+     "miles": 118,
+     "status": "check",
+     "score": 83,
+     "blockers": [],
+     "checks": [
+      "LA-bred only; set where Vekowin was bred",
+      "Only 1 of 9 starts are in the app"
+     ],
+     "reasons": [
+      "Recent top-three or winning form fits allowance company.",
+      "1 good effort within a furlong of 7f."
+     ],
+     "chips": [
+      "19 days after last race"
+     ],
+     "title": "Allowance",
+     "who": "3yo & up · LA-bred · NW1X"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-09",
+     "raceNo": "7",
+     "miles": 118,
+     "status": "check",
+     "score": 63,
+     "blockers": [],
+     "checks": [
+      "Only 1 of 9 starts are in the app"
+     ],
+     "reasons": [
+      "Stakes would be a big class jump.",
+      "1 good effort within a furlong of 1m."
+     ],
+     "chips": [
+      "20 days after last race"
+     ],
+     "title": "Delta Mile",
+     "who": "3yo & up"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-10",
+     "raceNo": "9",
+     "miles": 118,
+     "status": "check",
+     "score": 51,
+     "blockers": [],
+     "checks": [
+      "Only 1 of 9 starts are in the app"
+     ],
+     "reasons": [
+      "Would be the first time running for a claiming price ($25,000); another stable could claim the horse.",
+      "New distance type: has not run near 1⅛.",
+      "Would be first time on turf."
+     ],
+     "chips": [
+      "21 days after last race"
+     ],
+     "title": "Claiming $25,000",
+     "who": "3yo & up · NW1 since 2026-05-01"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-10-30",
+     "raceNo": "10",
+     "miles": 118,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 2-year-olds; Vekowin is 4.",
+      "Fillies and mares only."
+     ],
+     "checks": [
+      "Only 1 of 9 starts are in the app"
+     ],
+     "reasons": [
+      "Recent top-three or winning form fits allowance company.",
+      "1 good effort within a furlong of 6f."
+     ],
+     "chips": [
+      "10 days after last race!"
+     ],
+     "title": "Allowance optional claiming $40,000",
+     "who": "2yo fillies"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-05",
+     "raceNo": "1",
+     "miles": 118,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For 2-year-olds; Vekowin is 4.",
+      "For maidens; already a winner."
+     ],
+     "checks": [
+      "Only 1 of 9 starts are in the app"
+     ],
+     "reasons": [
+      "New distance type: has not run near 5f."
+     ],
+     "chips": [
+      "16 days after last race"
+     ],
+     "title": "Maiden special weight",
+     "who": "2yo · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-06",
+     "raceNo": "2",
+     "miles": 118,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "Fillies and mares only.",
+      "For maidens; already a winner."
+     ],
+     "checks": [
+      "Only 1 of 9 starts are in the app"
+     ],
+     "reasons": [
+      "1 good effort within a furlong of 6f."
+     ],
+     "chips": [
+      "17 days after last race"
+     ],
+     "title": "Maiden claiming $20,000",
+     "who": "3yo & up fillies & mares · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-07",
+     "raceNo": "3",
+     "miles": 118,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "For maidens; already a winner."
+     ],
+     "checks": [
+      "Only 1 of 9 starts are in the app"
+     ],
+     "reasons": [
+      "1 good effort within a furlong of 6½f."
+     ],
+     "chips": [
+      "18 days after last race"
+     ],
+     "title": "Maiden claiming $30,000",
+     "who": "3yo & up · maidens"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-07",
+     "raceNo": "4",
+     "miles": 118,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "Never won 2 races; has 2 wins."
+     ],
+     "checks": [
+      "Only 1 of 9 starts are in the app"
+     ],
+     "reasons": [
+      "Would be the first time running for a claiming price ($12,500); another stable could claim the horse.",
+      "New distance type: has not run near 1m70."
+     ],
+     "chips": [
+      "18 days after last race"
+     ],
+     "title": "Claiming $10,000–$12,500",
+     "who": "3yo & up · NW2L"
+    },
+    {
+     "book": "DED-b1",
+     "date": "2026-11-08",
+     "raceNo": "6",
+     "miles": 118,
+     "status": "not",
+     "score": 30,
+     "blockers": [
+      "Starter allowance: must have started for $10,000 or less since 2026-01-01."
+     ],
+     "checks": [
+      "Only 1 of 9 starts are in the app"
+     ],
+     "reasons": [
+      "Starter allowance: protected spot if eligible.",
+      "1 good effort within a furlong of 1m."
+     ],
+     "chips": [
+      "19 days after last race"
+     ],
+     "title": "Starter allowance",
+     "who": "3yo & up"
+    }
+   ]
+  }
+ },
+ "fmt": {
+  "dist": [
+   [
+    4,
+    "4f"
+   ],
+   [
+    4.5,
+    "4½f"
+   ],
+   [
+    6,
+    "6f"
+   ],
+   [
+    6.5,
+    "6½f"
+   ],
+   [
+    8,
+    "1m"
+   ],
+   [
+    8.318,
+    "1m70"
+   ],
+   [
+    8.182,
+    "1m40"
+   ],
+   [
+    8.5,
+    "1¹⁄₁₆"
+   ],
+   [
+    9,
+    "1⅛"
+   ],
+   [
+    10,
+    "1¼"
+   ],
+   [
+    12,
+    "1½"
+   ],
+   [
+    5.25,
+    "5.25f"
+   ],
+   [
+    7.75,
+    "7.75f"
+   ]
+  ],
+  "len": [
+   [
+    "Head",
+    "hd",
+    0.1
+   ],
+   [
+    "nk",
+    "nk",
+    0.25
+   ],
+   [
+    "Nose",
+    "no",
+    0.05
+   ],
+   [
+    "1/2",
+    "½",
+    0.5
+   ],
+   [
+    "1 1/2",
+    "1½",
+    1.5
+   ],
+   [
+    "12",
+    "12",
+    12
+   ],
+   [
+    "3 3/4",
+    "3¾",
+    3.75
+   ],
+   [
+    "dh",
+    "dh",
+    0
+   ],
+   [
+    "",
+    "",
+    0
+   ],
+   [
+    "2  1/4",
+    "2¼",
+    2.25
+   ]
+  ],
+  "ppDate": [
+   [
+    "2026-10-25",
+    "25Oct26"
+   ],
+   [
+    "2025-01-05",
+    "05Jan25"
+   ]
+  ],
+  "nice": [
+   [
+    "2026-11-14",
+    "Sat Nov 14"
+   ],
+   [
+    "2026-10-28",
+    "Wed Oct 28"
+   ],
+   [
+    "2027-01-01",
+    "Fri Jan 1"
+   ]
+  ],
+  "jockey": [
+   [
+    "Gonzalez, Ricardo",
+    "Gonzalez R"
+   ],
+   [
+    "Ricardo Gonzalez",
+    "Gonzalez R"
+   ],
+   [
+    "Smith",
+    "Smith"
+   ]
+  ],
+  "odds": [
+   [
+    3.4,
+    false,
+    "3.40"
+   ],
+   [
+    0.9,
+    true,
+    "0.90*"
+   ],
+   [
+    12,
+    false,
+    "12.00"
+   ]
+  ],
+  "trk": [
+   [
+    "DED",
+    "DeD"
+   ],
+   [
+    "FG",
+    "FG"
+   ],
+   [
+    "LRL",
+    "Lrl"
+   ],
+   [
+    "evd",
+    "EvD"
+   ],
+   [
+    "HOU",
+    "Hou"
+   ]
+  ],
+  "days": [
+   [
+    "2026-10-01",
+    "2026-11-08",
+    38
+   ],
+   [
+    "2025-12-31",
+    "2026-03-01",
+    60
+   ]
+  ],
+  "miles": [
+   [
+    "DED",
+    "HOU",
+    118
+   ],
+   [
+    "DED",
+    "EVD",
+    93
+   ],
+   [
+    "DED",
+    "LAD",
+    158
+   ],
+   [
+    "DED",
+    "FG",
+    210
+   ]
+  ],
+  "boxes": {
+   "filly": [
+    [
+     "Life",
+     3,
+     0,
+     1,
+     1,
+     7000
+    ],
+    [
+     "2026",
+     3,
+     0,
+     1,
+     1,
+     7000
+    ],
+    [
+     "D.Fst",
+     2,
+     0,
+     1,
+     0,
+     4600
+    ],
+    [
+     "Wet",
+     1,
+     0,
+     0,
+     1,
+     2400
+    ],
+    [
+     "Turf",
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "Synth",
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "DeD",
+     1,
+     0,
+     1,
+     0,
+     4000
+    ],
+    [
+     "Dst",
+     1,
+     0,
+     1,
+     0,
+     4000
+    ]
+   ],
+   "geld": [
+    [
+     "Life",
+     3,
+     1,
+     0,
+     0,
+     9500
+    ],
+    [
+     "2026",
+     2,
+     1,
+     0,
+     0,
+     9500
+    ],
+    [
+     "2025",
+     1,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "D.Fst",
+     1,
+     1,
+     0,
+     0,
+     9000
+    ],
+    [
+     "Wet",
+     1,
+     0,
+     0,
+     0,
+     500
+    ],
+    [
+     "Turf",
+     1,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "Synth",
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "EvD",
+     2,
+     1,
+     0,
+     0,
+     9500
+    ],
+    [
+     "Dst",
+     2,
+     1,
+     0,
+     0,
+     9500
+    ]
+   ],
+   "baby": [
+    [
+     "Life",
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "D.Fst",
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "Wet",
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "Turf",
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "Synth",
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   ],
+   "known": [
+    [
+     "Known",
+     9,
+     2,
+     0,
+     0,
+     0
+    ],
+    [
+     "Life",
+     1,
+     0,
+     1,
+     0,
+     6000
+    ],
+    [
+     "2026",
+     1,
+     0,
+     1,
+     0,
+     6000
+    ],
+    [
+     "D.Fst",
+     1,
+     0,
+     1,
+     0,
+     6000
+    ],
+    [
+     "Wet",
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "Turf",
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "Synth",
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    [
+     "Hou",
+     1,
+     0,
+     1,
+     0,
+     6000
+    ],
+    [
+     "Dst",
+     1,
+     0,
+     1,
+     0,
+     6000
+    ]
+   ]
+  }
+ }
+}

@@ -91,6 +91,11 @@ service cloud.firestore {
       }
     }
 
+    // Stable PPs (the second app): each person's own horses, race lines and condition books.
+    match /stables/{uid}/{document=**} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
     match /sales/{saleId} {
       allow read: if true;
       allow write: if isStaff();

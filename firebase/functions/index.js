@@ -15,6 +15,9 @@ exports.suggestConformation = require('./conformation').suggestConformation;
 exports.claimStaff = require('./staff').claimStaff;
 exports.onPersonChanged = require('./people').onPersonChanged;
 exports.deleteAccount = require('./people').deleteAccount;
+// Stable PPs (StablePPs/): Claude reads Equibase charts and condition books (see stable.js).
+exports.readChart = require('./stable').readChart;
+exports.readConditionBook = require('./stable').readConditionBook;
 
 const BUNDLE_ID = 'com.example.haintel';
 const APP_APPLE_ID = 6826705029;

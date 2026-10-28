@@ -22,13 +22,49 @@ workflows:
             echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > HAINTEL/GoogleService-Info.plist
           fi
       - name: Set up signing
-        script: xcode-project use-profiles
+        script: xcode-project use-profiles --project HAINTEL.xcodeproj
       - name: Set build number
         script: |
           agvtool new-version -all $(($BUILD_NUMBER + 1))
       - name: Build
         script: |
           xcode-project build-ipa --project HAINTEL.xcodeproj --scheme HAINTEL
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false  # internal testers get builds without beta review
+
+  # Stable PPs (StablePPs/): your horses' PPs and best races. Same Apple team, App Store Connect key
+  # and Firebase project as Backring Buyer. One-time setup: StablePPs/README.md.
+  stablepps-testflight:
+    name: Stable PPs → TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: HAINTEL ASC
+    environment:
+      xcode: 26.5
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.example.stablepps
+    scripts:
+      - name: Add Firebase config
+        script: |
+          # Optional: Stable PPs' own GoogleService-Info.plist (base64) once it's registered in Firebase.
+          if [ -n "$STABLEPPS_GOOGLE_SERVICE_INFO_PLIST" ]; then
+            echo "$STABLEPPS_GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > StablePPs/StablePPs/GoogleService-Info.plist
+          fi
+      - name: Set up signing
+        script: xcode-project use-profiles --project StablePPs/StablePPs.xcodeproj
+      - name: Set build number
+        script: |
+          cd StablePPs && agvtool new-version -all $(($BUILD_NUMBER + 1))
+      - name: Build
+        script: |
+          xcode-project build-ipa --project StablePPs/StablePPs.xcodeproj --scheme StablePPs
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
