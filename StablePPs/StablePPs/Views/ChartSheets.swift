@@ -167,6 +167,10 @@ struct ChartImportSheet: View {
     private func run() async {
         running = true
         defer { running = false }
+        // Shared from Safari into a closed app: give sign-in and the horse list a moment to load.
+        for _ in 0..<50 where store.phase == .starting || (store.phase == .signedIn && !store.horsesLoaded) {
+            try? await Task.sleep(nanoseconds: 200_000_000)
+        }
         if store.phase != .signedIn {
             for i in rows.indices { set(i, "Not added", "Sign in first, then share the chart again.", ok: false) }
             return
