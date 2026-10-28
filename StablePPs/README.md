@@ -4,15 +4,20 @@ Your horses' past performances laid out like the Daily Racing Form, and the best
 each horse within 200 miles of the track where it last ran.
 
 - **Horses**: add, edit and delete. "Add my 33 horses" fills a new stable from the Equibase Virtual Stable list.
-- **Past performances**: from Equibase charts. Open the horse on Equibase (Safari, where you're signed in),
-  open a race's chart, then either copy the text and tap **Paste chart**, or tap Safari's Share button and pick
-  **Stable PPs**. Saved chart PDFs work too (**Chart PDFs**), and lines can be added or corrected by hand.
-  Claude reads each chart (Cloud Function `readChart`) and fills in the horse's breeding, trainer and owner.
+- **Last race** and **Entered** cards on each horse (and on the horse list): finish, Beyer (typed in; Beyers
+  are DRF's) or Equibase Speed Figure, money won; and the next race it's entered in.
+- **Equibase inside the app**: Open on Equibase shows the horse's saved Equibase page in an in-app browser
+  (you sign in to Equibase there once). **Add this page** reads what's on screen: on the horse's page, its
+  next entry and its results with Equibase Speed Figures (Cloud Function `readEquibasePage`); on a chart,
+  the full DRF line (`readChart`). Nothing is read until you tap it.
+- **Past performances**: from Equibase charts, added in the in-app browser, by pasting chart text
+  (**Paste chart**), from Safari's Share button (**Stable PPs**) or from saved PDFs (**Chart PDFs**); lines can
+  be added or corrected by hand. Claude also fills in the horse's breeding, trainer and owner.
 - **Best races**: from the condition books you add (track's condition book PDF → **Condition books**). Each
   race is checked for eligibility (age, sex, state-bred, maiden and non-winners conditions, starter
   allowances) and scored on class, distance, surface, days since the last race and travel.
 
-The app never reads Equibase itself; you bring each chart in.
+The app never goes to Equibase on its own: it reads a page only when you tap Add this page.
 
 ## Where things live
 - `StablePPs/Core/`: models, DRF formatting, record boxes, race matching, Equibase links, the 33-horse list.
@@ -21,7 +26,7 @@ The app never reads Equibase itself; you bring each chart in.
 - `StablePPs/Backend/StableBackend.swift`: Firebase sign-in, Firestore and the Cloud Function calls.
 - `StablePPs/StableStore.swift`: app state and actions.
 - `StablePPs/Views/`: screens.
-- `../firebase/functions/stable.js`: `readChart` and `readConditionBook` (Claude).
+- `../firebase/functions/stable.js`: `readChart`, `readEquibasePage` and `readConditionBook` (Claude).
 
 ## Data
 Same Firebase project and accounts as Backring Buyer (`haintel-f481c`); sign in with the same email and password.
@@ -33,7 +38,8 @@ Same Firebase project and accounts as Backring Buyer (`haintel-f481c`); sign in 
 ## One-time setup
 1. **Firebase** (from a computer with the Firebase CLI, in `firebase/`):
    `firebase deploy --only functions,firestore:rules`
-   This adds `readChart`, `readConditionBook` and the `stables` rule. Until then the app can't save horses.
+   This adds `readChart`, `readEquibasePage`, `readConditionBook` and the `stables` rule. Until then the app
+   can't save horses or read anything with Claude.
 2. **Apple Developer** (https://developer.apple.com/account):
    - Identifiers → + → App IDs → App → Bundle ID `com.example.stablepps` (no capabilities needed).
    - Profiles → + → App Store → pick `com.example.stablepps` and the "HAINTEL" distribution certificate.

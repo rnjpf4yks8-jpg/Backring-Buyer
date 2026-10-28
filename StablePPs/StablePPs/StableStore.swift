@@ -189,6 +189,10 @@ final class StableStore {
             h.equibaseUrl = link
             try? await backend.save(horse: h)
         }
+        // Summaries saved by the first version lack the last race's money and figures.
+        for h in horses where h.lastRace != nil && h.lastRace?.lineID == nil {
+            try? await refreshSummary(h.id)
+        }
     }
 
     // MARK: Race lines
@@ -207,7 +211,8 @@ final class StableStore {
 
     /// Keeps the horse's card (record and last race) current after its lines change,
     /// and fills empty profile fields from a chart.
-    private func refreshSummary(_ horseID: String, profile: ChartReply.Profile? = nil, profileDate: String? = nil) async throws {
+    private func refreshSummary(_ horseID: String, profile: ChartReply.Profile? = nil, profileDate: String? = nil,
+                                modify: ((inout Horse) -> Void)? = nil) async throws {
         let backend = try requireBackend()
         guard var h = horse(horseID) else { return }
         let all = try await backend.lines(horseID: horseID)
@@ -228,6 +233,7 @@ final class StableStore {
         }
         h.record = Records.of(all)
         h.lastRace = Records.lastRace(all)
+        modify?(&h)
         h.updatedAt = Dates.stamp()
         try await backend.save(horse: h)
     }
@@ -266,6 +272,12 @@ final class StableStore {
             guard let h = horse(found.horseId) ?? list.first(where: { $0.id == found.horseId }) else { continue }
             var line = found.line
             line.updatedAt = Dates.stamp()
+            // Keep figures typed in or read from the Equibase page; charts don't carry Beyers.
+            let existing = (try? await backend.lines(horseID: h.id)) ?? []
+            if let old = existing.first(where: { $0.id == line.id }) {
+                line.beyer = line.beyer ?? old.beyer
+                line.speed = line.speed ?? old.speed
+            }
             try await backend.save(line: line, horseID: h.id)
             try await refreshSummary(h.id, profile: found.profile, profileDate: line.date)
             let place = line.finish?.pos.map { DRF.ordinal($0) } ?? "?"
@@ -301,6 +313,79 @@ final class StableStore {
         } else {
             incoming = ChartBatch(files: [file], horseID: nil)
         }
+    }
+
+    // MARK: Equibase page: entry and results
+
+    struct PageOutcome {
+        var entry: Entry?
+        var noEntryReason: String?
+        var updated = 0
+        var added = 0
+    }
+
+    /// Claude reads a horse's Equibase page: the race it's entered in replaces the old entry, and each result
+    /// fills in the Equibase Speed Figure (and finish and money if missing) on the matching line, or adds a
+    /// short line for a race whose chart isn't in the app yet.
+    func readEquibasePage(text: String, for horseID: String) async throws -> PageOutcome {
+        let backend = try requireBackend()
+        guard let start = horse(horseID) else { throw BackendError(message: "That horse isn’t in your stable any more.") }
+        let reply = try await backend.readEquibasePage(text: String(text.prefix(150_000)), horse: start)
+        var outcome = PageOutcome(entry: reply.entry, noEntryReason: reply.noEntryReason)
+
+        let existing = try await backend.lines(horseID: horseID)
+        for r in reply.races {
+            let match = existing.first { l in
+                l.date == r.date && (l.track ?? "").uppercased() == r.track.uppercased() && (r.race == nil || l.race == nil || l.race == r.race)
+            }
+            if var line = match {
+                var changed = false
+                if let speed = r.speed, line.speed != speed { line.speed = speed; changed = true }
+                if line.finish?.pos == nil, let pos = r.finish { line.finish = Finish(pos: pos, lengths: line.finish?.lengths); changed = true }
+                if line.earnings == nil, let money = r.earnings { line.earnings = money; changed = true }
+                if changed {
+                    line.updatedAt = Dates.stamp()
+                    try await backend.save(line: line, horseID: horseID)
+                    outcome.updated += 1
+                }
+            } else {
+                var line = RaceLine(id: RaceLine.key(date: r.date, track: r.track, race: r.race))
+                line.date = r.date
+                line.track = r.track
+                line.trackName = Track.find(r.track)?.name
+                line.race = r.race
+                line.finish = Finish(pos: r.finish, lengths: nil)
+                line.speed = r.speed
+                line.earnings = r.earnings
+                line.distanceF = r.distanceF
+                line.surface = r.surface ?? "D"
+                line.type = r.type
+                line.classText = r.classText
+                line.fieldSize = r.fieldSize
+                line.source = "equibase page"
+                line.updatedAt = Dates.stamp()
+                try await backend.save(line: line, horseID: horseID)
+                outcome.added += 1
+            }
+        }
+
+        // Summary, plus the entry (a newer read replaces it; an entry that has run is cleared).
+        let today = Dates.today()
+        try await refreshSummary(horseID) { h in
+            if let entry = reply.entry {
+                h.entry = entry
+            } else if let old = h.entry, !old.isUpcoming(today: today) {
+                h.entry = nil
+            }
+        }
+        return outcome
+    }
+
+    func save(entry: Entry?, for horseID: String) async throws {
+        guard var h = horse(horseID) else { return }
+        h.entry = entry
+        h.updatedAt = Dates.stamp()
+        try await requireBackend().save(horse: h)
     }
 
     // MARK: Condition books

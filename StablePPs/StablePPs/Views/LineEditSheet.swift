@@ -24,6 +24,7 @@ struct LineEditSheet: View {
     @State private var jockey = ""
     @State private var weight = ""
     @State private var beyer = ""
+    @State private var speed = ""
     @State private var comment = ""
     @State private var loaded = false
     @State private var saving = false
@@ -68,6 +69,7 @@ struct LineEditSheet: View {
                     TextField("Jockey", text: $jockey)
                     TextField("Weight", text: $weight).keyboardType(.numberPad)
                     TextField("Beyer figure", text: $beyer).keyboardType(.numberPad)
+                    TextField("Equibase Speed Figure", text: $speed).keyboardType(.numberPad)
                     TextField("Comment", text: $comment)
                 }
                 if line != nil {
@@ -133,6 +135,7 @@ struct LineEditSheet: View {
         jockey = l.jockey ?? ""
         weight = l.weight.map(String.init) ?? ""
         beyer = l.beyer.map(String.init) ?? ""
+        speed = l.speed.map(String.init) ?? ""
         comment = l.comment ?? ""
     }
 
@@ -157,6 +160,7 @@ struct LineEditSheet: View {
         l.jockey = jockey.trimmingCharacters(in: .whitespaces)
         l.weight = Self.whole(weight)
         l.beyer = Self.whole(beyer)
+        l.speed = Self.whole(speed)
         l.comment = comment.trimmingCharacters(in: .whitespaces)
         if l.source == nil { l.source = "hand" }
         saving = true

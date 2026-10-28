@@ -18,6 +18,7 @@ exports.deleteAccount = require('./people').deleteAccount;
 // Stable PPs (StablePPs/): Claude reads Equibase charts and condition books (see stable.js).
 exports.readChart = require('./stable').readChart;
 exports.readConditionBook = require('./stable').readConditionBook;
+exports.readEquibasePage = require('./stable').readEquibasePage;
 
 const BUNDLE_ID = 'com.example.haintel';
 const APP_APPLE_ID = 6826705029;
